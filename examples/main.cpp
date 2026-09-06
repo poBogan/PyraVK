@@ -5,13 +5,12 @@
 int main()
 {
 	glfwInit();
+	glfwWindowHint(GLFW_CLIENT_API, GLFW_NO_API);
 	GLFWwindow* window = glfwCreateWindow(800, 800, "test program", 0, 0);
 
-	uint32_t extentionCount;
-	const char* const* requiredInstanceExtentions = glfwGetRequiredInstanceExtensions(&extentionCount);
-	std::vector<const char*> instanceExtentionNames(requiredInstanceExtentions, requiredInstanceExtentions + extentionCount);
-
-	pyra::Renderer::createRenderer(instanceExtentionNames);
+	uint32_t extention_count = 0;
+	const char** requiredExtentionsAddr = glfwGetRequiredInstanceExtensions(&extention_count);
+	std::vector<const char*> requiredExtNames(requiredExtentionsAddr, requiredExtentionsAddr + extention_count);
 
 	while (!glfwWindowShouldClose(window))
 	{
