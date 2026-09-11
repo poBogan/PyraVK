@@ -1,46 +1,32 @@
 #pragma once
-
-#include <vulkan/vulkan_raii.hpp>
+#include <PyraVK/Definitions.h>
+#include <PyraVK/VulkanInstance.h>
+#include <PyraVK/Surface.h>
+#include <PyraVK/RenderDevice.h>
 
 namespace pyra
 {
+
 	class Renderer
 	{
-	private : 
-		static Renderer* singletonRenderer;
-		Renderer();
-	private : 
-		uint32_t vulkanVersionRequired = vk::ApiVersion13;
-		std::vector<const char*> requiredInstanceExtentions;
-		std::vector<const char*> requiredInstanceLayers{ "VK_LAYER_KHRONOS_validation" };
+	private:
+		static std::unique_ptr<Renderer> singletonRenderer;
 
-		vk::raii::Instance vulkanInstance = nullptr;
-		vk::raii::Context context;
-
-		vk::SurfaceKHR surface = VK_NULL_HANDLE;
-		vk::Extent2D swapchainImageExtent;
-		vk::Format swapchainImageFormat;
-	
-		std::vector<const char*> requiredDeviceExtentions{ vk::KHRSwapchainExtensionName };
-		vk::raii::PhysicalDevice physicalDevice = nullptr; 
-		vk::raii::Device logicalDevice = nullptr;
-		vk::raii::Queue graphicsQueue = nullptr;
-		uint32_t graphicsQueueFamilyIndex = 0;
-	public : 
+		std::unique_ptr<VulkanInstance> vulkanInstance = nullptr;
+		std::unique_ptr<Surface>		surface = nullptr;
+		std::unique_ptr<RenderDevice>	renderDevice = nullptr;
+	private:
+		Renderer(std::unique_ptr<VulkanInstance>&& instance, std::unique_ptr<Surface>&& surface);
+	public:
+		Renderer() = delete;
 		Renderer(Renderer&) = delete;
-		static Renderer* createRenderer();
-		static Renderer* getRenderer();
+		Renderer(Renderer&&) = delete;
 
-		vk::Instance createVulkanInstance(std::vector<const char*>required_instance_extentions);
-		vk::Instance getVulkanInstance(); 
+		static const std::unique_ptr<Renderer>& createRenderer(std::unique_ptr<VulkanInstance>&& instance, std::unique_ptr<Surface>&& surface);
+		static const std::unique_ptr<Renderer>& getRenderer();
 
-		void configureDisplayWindow(vk::SurfaceKHR window_surface,vk::Extent2D window_size_in_pixels);
-
-		std::vector<vk::raii::PhysicalDevice> getPhysicalDevices();
-		bool physicalDeviceSuitable(vk::raii::PhysicalDevice device);
-		void selectPhysicalDevice(vk::raii::PhysicalDevice device); 
-	private : 
-		void createLogicalDevice();
-		void createSwapchain();
+		std::vector<std::unique_ptr<RenderDevice>> getSuitableDevices(std::vector<const char*>device_extentions = {vk::KHRSwapchainExtensionName});
+		void useRenderDevice(std::unique_ptr<RenderDevice>&& device);
 	};
-}
+
+};
