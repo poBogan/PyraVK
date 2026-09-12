@@ -1,5 +1,4 @@
 #include <PyraVK/Renderer.h>
-#include <PyraVK/RenderDevice.h>
 #define GLFW_INCLUDE_VULKAN
 #include <GLFW/glfw3.h>
 
@@ -12,20 +11,22 @@ int main()
 	uint32_t extCount = 0;
 	const char** extNames = glfwGetRequiredInstanceExtensions(&extCount);
 	std::vector<const char*> extension_names(extNames, extNames + extCount);
-	std::vector<const char*> layer_names{ "VK_LAYER_KHRONOS_validation"};
 
-	auto instance = pyra::VulkanInstance::createVulkanInstance(extension_names, layer_names);
+	pyra::Renderer::createRenderer();
+	auto& renderer = pyra::Renderer::getRenderer(); 
 
-	VkSurfaceKHR surface_; 
-	glfwCreateWindowSurface(*instance->getInstanceObject(), window, nullptr, &surface_);
-	auto surface = pyra::Surface::createSurface(instance, surface_);
+	renderer.setVulkanInstance(extension_names);
 
+	VkSurfaceKHR s; 
+	glfwCreateWindowSurface(*renderer.getVulkanInstance().getVulkanInstanceHandle(), window, nullptr, &s);
+	renderer.setWindowSurface(s);
 
-	pyra::Renderer::createRenderer(std::move(instance), std::move(surface)); 
+	auto devices = renderer.getSuitableDevices();
+	renderer.selectDevice(std::move(devices[0]));
 
-	auto devices = pyra::Renderer::getRenderer()->getSuitableDevices();
-
-	pyra::Renderer::getRenderer()->useRenderDevice(std::move(devices[0]));
+	int width, height; 
+	glfwGetFramebufferSize(window, &width, &height);
+	renderer.setSwapchain({ (uint32_t)width, (uint32_t)height });
 
 	while (!glfwWindowShouldClose(window))
 	{

@@ -4,26 +4,13 @@ namespace pyra
 {
 
 
-	Surface::Surface(std::unique_ptr<VulkanInstance>& instance,vk::SurfaceKHR surface, std::vector<vk::SurfaceFormatKHR> format_preferences)
+	Surface::Surface(VulkanInstance& instance,vk::SurfaceKHR surface)
 	{
-		surface_obj = vk::raii::SurfaceKHR(instance->getInstanceObject(),std::move(surface));
-		this->format_preferences = std::move(format_preferences);
+		handle = vk::raii::SurfaceKHR(instance.getVulkanInstanceHandle(), surface);
 	}
 
-	std::unique_ptr<Surface> Surface::createSurface(std::unique_ptr<VulkanInstance>& instance, vk::SurfaceKHR surface, std::vector<vk::SurfaceFormatKHR> format_preferences)
+	const vk::raii::SurfaceKHR& Surface::getSurfaceHandle() const
 	{
-		return std::unique_ptr<Surface>(new Surface(instance,std::move(surface),std::move(format_preferences)));
+		return handle;
 	}
-
-	const vk::raii::SurfaceKHR& Surface::getSurfaceObj() const
-	{
-		return surface_obj;
-	}
-
-	const std::vector<vk::SurfaceFormatKHR>& Surface::getFormatPreferences() const
-	{
-		return format_preferences;
-	}
-
-
 }

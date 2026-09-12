@@ -7,18 +7,28 @@
 #include <string>
 #include <memory>
 #include <exception>
+#include <optional>
 #include <ranges>
 #include <algorithm>
 
+#define pyra_assert(assertion,fail_messsage) \
+if(!assertion) {spdlog::error("Exception at -> " __FUNCTION__ " | {:}",fail_messsage); \
+throw std::exception(fail_messsage);}
 
-#define pyra_log_info(...)		if(pyra::console_logger) spdlog::info(__VA_ARGS__)
-#define pyra_log_warning(...)	if(pyra::console_logger) spdlog::warn(__FUNCTION__ ": " __VA_ARGS__)
-#define pyra_log_error(...)		if(pyra::console_logger) spdlog::error(__FUNCTION__ ": " __VA_ARGS__)
-#define pyra_log_critical(...)  if(pyra::console_logger) spdlog::critical(__FUNCTION__ ": " __VA_ARGS__)
 
 namespace pyra
 {
+	class Base
+	{
+	protected : 
+		Base() = default;
+		~Base() = default;
 
-	static bool console_logger = true; 
+		Base(const Base&) = delete;
+		Base& operator=(const Base&) = delete; 
+
+		Base(Base&&) = default;
+		Base& operator=(Base&&) = default;
+	};
 
 }

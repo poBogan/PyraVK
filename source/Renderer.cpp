@@ -4,37 +4,95 @@
 namespace pyra
 {
 
-	std::unique_ptr<Renderer> Renderer::singletonRenderer = nullptr;
+	std::optional<Renderer> Renderer::singletonRenderer;
 
-	const std::unique_ptr<Renderer>& Renderer::createRenderer(std::unique_ptr<VulkanInstance>&& instance, std::unique_ptr<Surface>&& surface)
+	void pyra::Renderer::createRenderer()
 	{
-		if (singletonRenderer == nullptr)
-		{
-			singletonRenderer = std::unique_ptr<Renderer>(new Renderer(std::move(instance), std::move(surface)));
-		}
-
-		return singletonRenderer;
+		if (!singletonRenderer.has_value())
+			singletonRenderer.emplace(Renderer());
 	}
 
-	const std::unique_ptr<Renderer>& Renderer::getRenderer()
+	Renderer& pyra::Renderer::getRenderer()
 	{
-		return singletonRenderer;
+		pyra_assert(singletonRenderer.has_value(), "Cannot get renderer. It is not initilaized!");
+		return singletonRenderer.value();
 	}
 
-	Renderer::Renderer(std::unique_ptr<VulkanInstance>&& instance, std::unique_ptr<Surface>&& surface)
+	void Renderer::setVulkanInstance(std::vector<const char*> extentions,std::vector<const char*> layers)
 	{
-		this->vulkanInstance = std::move(instance);
-		this->surface = std::move(surface);
+		swapchain.reset(); 
+		renderDevice.reset(); 
+		windowSurface.reset(); 
+
+		vulkanInstance.emplace(VulkanInstance(context, std::move(extentions), std::move(layers), vk::ApiVersion13));
 	}
 
-	std::vector<std::unique_ptr<RenderDevice>> Renderer::getSuitableDevices(std::vector<const char*> device_extentions)
+	void Renderer::setWindowSurface(vk::SurfaceKHR surface)
 	{
-		return RenderDevice::getSuitableDevices(vulkanInstance, surface, device_extentions);
+		pyra_assert(vulkanInstance.has_value(), "Cannot init surface. No vulkan instance found");
+
+		swapchain.reset();
+		renderDevice.reset();
+
+		windowSurface.emplace(Surface(vulkanInstance.value(),surface));
 	}
 
-	void Renderer::useRenderDevice(std::unique_ptr<RenderDevice>&& device)
+	std::vector<Device> Renderer::getSuitableDevices()
 	{
-		renderDevice = std::move(device);
+		pyra_assert(vulkanInstance.has_value(), "Cannot fetch devices. No vulkan instance found!"); 
+		pyra_assert(windowSurface.has_value(), "Cannot fetch devices. No surface found");
+		return Device::getSuitableDevices(vulkanInstance.value(), windowSurface.value(), { vk::KHRSwapchainExtensionName });
+	}
+
+	void Renderer::selectDevice(Device&& render_device)
+	{
+		pyra_assert(vulkanInstance.has_value(), "Cannot select device. No vulkan instance found!");
+		pyra_assert(windowSurface.has_value(), "Cannot select device. No surface found!");
+
+		swapchain.reset();
+		render_device.constructDeviceHandles();
+		renderDevice.emplace(std::move(render_device));
+	}
+
+	void Renderer::setSwapchain(
+		vk::Extent2D window_size_in_pixels,
+		uint32_t targetImageCount,
+		std::vector<vk::SurfaceFormatKHR> imageFormatPreferences,
+		std::vector<vk::PresentModeKHR> presentModePreferences
+		)
+	{
+		pyra_assert(vulkanInstance.has_value(), "Cannot create swapchain. No vulkan instance found!");
+		pyra_assert(windowSurface.has_value(), "Cannot create swapchain. No surface found!");
+		pyra_assert(renderDevice.has_value(), "Cannot create swapchain. No render device selected!");
+
+		swapchain.emplace(Swapchain(renderDevice.value(), windowSurface.value(), window_size_in_pixels, targetImageCount, imageFormatPreferences, presentModePreferences));
+	}
+
+	const vk::raii::Context& Renderer::getContext() const
+	{
+		return context;
+	}
+	const VulkanInstance& Renderer::getVulkanInstance() const
+	{
+		pyra_assert(vulkanInstance.has_value(), "Cannot return vulkan instance! No instance found");
+		return vulkanInstance.value();
+	}
+	const Surface& Renderer::getWindowSurface() const
+	{
+		pyra_assert(windowSurface.has_value(), "Cannot return surface. No surface found");
+		return windowSurface.value();
+	}
+
+	const Device& Renderer::getRenderDevice() const
+	{
+		pyra_assert(renderDevice.has_value(), "Cannot return render device. No device selected!");
+		return renderDevice.value();
+	}
+
+	const Swapchain& Renderer::getSwapchain() const
+	{
+		pyra_assert(swapchain.has_value(), "Cannot return swapchain. No swapchain found!");
+		return swapchain.value();
 	}
 
 }
