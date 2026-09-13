@@ -12,9 +12,8 @@
 #include <algorithm>
 
 #define pyra_assert(assertion,fail_messsage) \
-if(!assertion) {spdlog::error("Exception at -> " __FUNCTION__ " | {:}",fail_messsage); \
+if(!(assertion)) {spdlog::error("Exception at {:} ==> {:}",__FUNCTION__,fail_messsage); \
 throw std::exception(fail_messsage);}
-
 
 namespace pyra
 {
