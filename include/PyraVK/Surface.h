@@ -9,7 +9,7 @@ namespace pyra
 	{
 		vk::raii::SurfaceKHR handle = nullptr; 
 	public : 
-		Surface(VulkanInstance& instance,vk::SurfaceKHR surface);
+		Surface(VulkanInstance& instance,VkSurfaceKHR surface);
 		const vk::raii::SurfaceKHR& getSurfaceHandle() const; 
 	};
 

@@ -62,22 +62,26 @@ namespace pyra
 	void Device::constructDeviceHandles()
 	{
 		float queuePriority = 0.5f;
-		vk::DeviceQueueCreateInfo queueInfo;
-		queueInfo.pQueuePriorities = &queuePriority;
-		queueInfo.queueCount = 1;
-		queueInfo.queueFamilyIndex = this->graphics_queue_family_index;
+		VkDeviceQueueCreateInfo queueInfo{
+			.sType = VK_STRUCTURE_TYPE_DEVICE_QUEUE_CREATE_INFO,
+			.queueFamilyIndex = this->graphics_queue_family_index,
+			.queueCount = 1,
+			.pQueuePriorities = &queuePriority
+		};
 
 		auto features = vk::StructureChain<vk::PhysicalDeviceFeatures2, vk::PhysicalDeviceVulkan11Features, vk::PhysicalDeviceVulkan13Features, vk::PhysicalDeviceExtendedDynamicStateFeaturesEXT>();
 		features.get<vk::PhysicalDeviceVulkan11Features>().shaderDrawParameters = true;
 		features.get<vk::PhysicalDeviceVulkan13Features>().dynamicRendering = true;
 		features.get<vk::PhysicalDeviceExtendedDynamicStateFeaturesEXT>().extendedDynamicState = true;
 
-		vk::DeviceCreateInfo deviceInfo;
-		deviceInfo.enabledExtensionCount = (uint32_t)this->device_extentions.size();
-		deviceInfo.ppEnabledExtensionNames = this->device_extentions.data();
-		deviceInfo.queueCreateInfoCount = 1;
-		deviceInfo.pQueueCreateInfos = &queueInfo;
-		deviceInfo.pNext = &features.get<vk::PhysicalDeviceFeatures2>();
+		VkDeviceCreateInfo deviceInfo{
+			.sType = VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO,
+			.pNext = &features.get<vk::PhysicalDeviceFeatures2>(),
+			.queueCreateInfoCount = 1,
+			.pQueueCreateInfos = &queueInfo,
+			.enabledExtensionCount = (uint32_t)this->device_extentions.size(),
+			.ppEnabledExtensionNames = this->device_extentions.data(),
+		};
 
 		logicalDeviceHandle = vk::raii::Device(physicalDeviceHandle, deviceInfo);
 		graphicsQueueHandle = vk::raii::Queue(logicalDeviceHandle, this->graphics_queue_family_index, 0);

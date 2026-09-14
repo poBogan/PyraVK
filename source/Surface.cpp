@@ -4,7 +4,7 @@ namespace pyra
 {
 
 
-	Surface::Surface(VulkanInstance& instance,vk::SurfaceKHR surface)
+	Surface::Surface(VulkanInstance& instance,VkSurfaceKHR surface)
 	{
 		handle = vk::raii::SurfaceKHR(instance.getVulkanInstanceHandle(), surface);
 	}

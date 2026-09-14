@@ -24,7 +24,7 @@ namespace pyra
 		renderDevice.reset(); 
 		windowSurface.reset(); 
 
-		vulkanInstance.emplace(VulkanInstance(context, std::move(extentions), std::move(layers), vk::ApiVersion13));
+		vulkanInstance.emplace(VulkanInstance(context, std::move(extentions), std::move(layers)));
 	}
 
 	void Renderer::setWindowSurface(vk::SurfaceKHR surface)

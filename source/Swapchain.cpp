@@ -54,20 +54,22 @@ namespace pyra
 			}
 		}
 
-		vk::SwapchainCreateInfoKHR swapchainInfo;
-		swapchainInfo.surface = *surface.getSurfaceHandle();
-		swapchainInfo.compositeAlpha = vk::CompositeAlphaFlagBitsKHR::eOpaque;
-		swapchainInfo.imageArrayLayers = 1;
-		swapchainInfo.imageColorSpace = swapchainImageFormat.colorSpace;
-		swapchainInfo.imageExtent = swapchainImageExtent;
-		swapchainInfo.imageFormat = swapchainImageFormat.format;
-		swapchainInfo.presentMode = swapchainPresentMode;
-		swapchainInfo.imageSharingMode = vk::SharingMode::eExclusive; 
-		swapchainInfo.imageUsage = vk::ImageUsageFlagBits::eColorAttachment; 
-		swapchainInfo.minImageCount = targetImageCount;
-		swapchainInfo.clipped = true; 
-		swapchainInfo.preTransform = surface_capabilities.currentTransform;
-		swapchainInfo.oldSwapchain = nullptr;
+		VkSwapchainCreateInfoKHR swapchainInfo{
+			.sType = VK_STRUCTURE_TYPE_SWAPCHAIN_CREATE_INFO_KHR,
+			.surface = *surface.getSurfaceHandle(),
+			.minImageCount = targetImageCount,
+			.imageFormat = (VkFormat)swapchainImageFormat.format,
+			.imageColorSpace = (VkColorSpaceKHR)swapchainImageFormat.colorSpace,
+			.imageExtent = (VkExtent2D)swapchainImageExtent,
+			.imageArrayLayers = 1,
+			.imageUsage = VkImageUsageFlagBits::VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT,
+			.imageSharingMode = VkSharingMode::VK_SHARING_MODE_EXCLUSIVE,
+			.preTransform = (VkSurfaceTransformFlagBitsKHR)surface_capabilities.currentTransform,
+			.compositeAlpha = VkCompositeAlphaFlagBitsKHR::VK_COMPOSITE_ALPHA_OPAQUE_BIT_KHR,
+			.presentMode = (VkPresentModeKHR)swapchainPresentMode,
+			.clipped = VK_TRUE,
+			.oldSwapchain = VK_NULL_HANDLE
+		};
 
 		handle = vk::raii::SwapchainKHR(renderDevice.getLogicalDeviceHandle(), swapchainInfo);
 
@@ -75,18 +77,19 @@ namespace pyra
 
 		for (auto& image : swapchainImages)
 		{
-			vk::ImageSubresourceRange r; 
-			r.aspectMask = vk::ImageAspectFlagBits::eColor;
-			r.layerCount = 1; 
-			r.levelCount = 1;
-
-			vk::ImageViewCreateInfo imageViewInfo;
-			imageViewInfo.viewType = vk::ImageViewType::e2D; 
-			imageViewInfo.format = swapchainImageFormat.format; 
-			imageViewInfo.image = image;
-			imageViewInfo.components = { vk::ComponentSwizzle::eIdentity, vk::ComponentSwizzle::eIdentity ,vk::ComponentSwizzle::eIdentity ,vk::ComponentSwizzle::eIdentity };
-			imageViewInfo.subresourceRange = r;
-
+			
+			VkImageViewCreateInfo imageViewInfo{
+				.sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO,
+				.image = (VkImage)image,
+				.viewType = VkImageViewType::VK_IMAGE_VIEW_TYPE_2D,
+				.format = (VkFormat)swapchainImageFormat.format,
+				.components = { VkComponentSwizzle::VK_COMPONENT_SWIZZLE_IDENTITY,VkComponentSwizzle::VK_COMPONENT_SWIZZLE_IDENTITY ,VkComponentSwizzle::VK_COMPONENT_SWIZZLE_IDENTITY,VkComponentSwizzle::VK_COMPONENT_SWIZZLE_IDENTITY },
+				.subresourceRange = {
+					.aspectMask = VkImageAspectFlagBits::VK_IMAGE_ASPECT_COLOR_BIT,
+					.levelCount = 1,
+					.layerCount = 1
+				}
+			};
 			swapchainImageViews.push_back(vk::raii::ImageView(renderDevice.getLogicalDeviceHandle(), imageViewInfo));
 		}
 

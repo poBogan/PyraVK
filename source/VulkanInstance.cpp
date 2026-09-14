@@ -3,29 +3,32 @@
 
 namespace pyra
 {
-	VulkanInstance::VulkanInstance(const vk::raii::Context& context,std::vector<const char*> extentions, std::vector<const char*> layers, uint32_t vulkan_version)
+	VulkanInstance::VulkanInstance(const vk::raii::Context& context,std::vector<const char*> extentions, std::vector<const char*> layers)
 	{
-		pyra_assert(vulkan_api_version >= vk::ApiVersion13, "Vulkan version must be equal or above 1.3");
-
 		try 
 		{
 			this->extentions = std::move(extentions);
 			this->layers = std::move(layers);
-			this->vulkan_api_version = vulkan_version;
 
-			vk::ApplicationInfo app;
-			app.apiVersion = this->vulkan_api_version;
-			app.applicationVersion = VK_MAKE_VERSION(1, 0, 0);
-			app.engineVersion = VK_MAKE_VERSION(1, 0, 0);
-			app.pApplicationName = "PyraVK";
-			app.pEngineName = "PyraVK Renderer";
+			VkApplicationInfo appInfo
+			{
+				.sType = VK_STRUCTURE_TYPE_APPLICATION_INFO,
+				.pApplicationName = "PyraVK App",
+				.applicationVersion = VK_MAKE_VERSION(1,0,0),
+				.pEngineName = "PyraVK Engine",
+				.engineVersion = VK_MAKE_VERSION(1,0,0),
+				.apiVersion = vulkan_api_version
+			};
 
-			vk::InstanceCreateInfo instanceInfo;
-			instanceInfo.enabledExtensionCount = (uint32_t)this->extentions.size();
-			instanceInfo.ppEnabledExtensionNames = this->extentions.data();
-			instanceInfo.enabledLayerCount = (uint32_t)this->layers.size();
-			instanceInfo.ppEnabledLayerNames = this->layers.data();
-			instanceInfo.pApplicationInfo = &app;
+			VkInstanceCreateInfo instanceInfo
+			{
+				.sType = VK_STRUCTURE_TYPE_INSTANCE_CREATE_INFO,
+				.pApplicationInfo = &appInfo,
+				.enabledLayerCount = (uint32_t)this->layers.size(),
+				.ppEnabledLayerNames = this->layers.data(),
+				.enabledExtensionCount = (uint32_t)this->extentions.size(),
+				.ppEnabledExtensionNames = this->extentions.data()
+			};
 
 			handle = vk::raii::Instance(context, instanceInfo);
 		}
