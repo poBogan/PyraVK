@@ -97,6 +97,13 @@ namespace pyra
 				}
 			};
 			swapchainImageViews.push_back(vk::raii::ImageView(renderDevice.getLogicalDeviceHandle(), vk::ImageViewCreateInfo(imageViewInfo)));
+
+			VkSemaphoreCreateInfo semaphoreInfo{
+				.sType = VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO,
+				.pNext = NULL,
+				.flags = {}
+			};
+			imagePresentableSemaphores.push_back(vk::raii::Semaphore(renderDevice.getLogicalDeviceHandle(), vk::SemaphoreCreateInfo(semaphoreInfo)));
 		}
 
 	}
@@ -114,6 +121,11 @@ namespace pyra
 	const std::vector<vk::raii::ImageView>& Swapchain::getSwapchainImageViews() const
 	{
 		return swapchainImageViews;
+	}
+
+	const std::vector<vk::raii::Semaphore>& Swapchain::getImagePresentableSemaphores() const
+	{
+		return imagePresentableSemaphores;
 	}
 
 	vk::Extent2D Swapchain::getSwapchainImageExtent() const

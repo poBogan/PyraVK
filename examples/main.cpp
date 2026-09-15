@@ -35,7 +35,7 @@ int main()
 	while (!glfwWindowShouldClose(window))
 	{
 		glfwPollEvents();
-		renderer.drawFrames();
+		renderer.drawFrame();
 	}
 
 	renderer.getRenderDevice().getLogicalDeviceHandle().waitIdle();

@@ -62,7 +62,7 @@ namespace pyra
 
 		destroySwapchain();
 		swapchain.emplace(Swapchain(renderDevice.value(), windowSurface.value(), window_size_in_pixels, targetImageCount, imageFormatPreferences, presentModePreferences));
-		renderDevice->constructCommandBuffers(swapchain->getSwapchainImageCount() + 1);
+		renderDevice->constructCommandBuffers(swapchain->getSwapchainImageCount() - 1);
 	}
 
 	void pyra::Renderer::constructGraphicsPipeline(
@@ -84,162 +84,162 @@ namespace pyra
 		graphicsPipeline.emplace(GraphicsPipeline(renderDevice.value(), swapchain.value().getSwapchainImageFormat().format, viewport, scissor, primitiveTopology, faceCulling, frontFace, polygonMode, sampleCount));
 	}
 
-	void Renderer::drawFrames()
+	void Renderer::drawFrame()
 	{
+		static uint32_t frame_idx = 0;
 		uint32_t frames_in_flight = renderDevice->getFramesInFlightCount();
-		for (int frame_idx = 0;frame_idx < frames_in_flight;frame_idx++)
-		{
-			const auto& logical_device = renderDevice->getLogicalDeviceHandle();
-			const auto& graphicsQueue = renderDevice->getGraphicsQueueHandle();
-			const auto& commandBuffers = renderDevice->getCommandBuffers();
-			const auto& bufferReadyFences = renderDevice->getCommandBufferFences();
-			const auto& imagePaintedSemaphores = renderDevice->getImagePaintedSemaphores();
-			const auto& imageReadySemaphores = renderDevice->getImageReadySemaphores();
-			const auto& swapchain_handle = swapchain->getSwapchainHandle();
-			const auto& swapchainImages = swapchain->getSwapchainImages();
-			const auto& swapchainImageViews = swapchain->getSwapchainImageViews();
-			const auto& swapchainImageExtent = swapchain->getSwapchainImageExtent();
+		frame_idx %= frames_in_flight;
 
-			logical_device.waitForFences(*bufferReadyFences[frame_idx], VK_TRUE, UINT64_MAX);
-			logical_device.resetFences(*bufferReadyFences[frame_idx]);
+		const auto& logical_device = renderDevice->getLogicalDeviceHandle();
+		const auto& graphicsQueue = renderDevice->getGraphicsQueueHandle();
+		const auto& commandBuffers = renderDevice->getCommandBuffers();
+		const auto& commandBufferAvailableFences = renderDevice->getCommandBufferAvailableFences();
+		const auto& imagePresentableSemaphores = swapchain->getImagePresentableSemaphores();
+		const auto& imagePaintableSemaphores = renderDevice->getTargetImagePaintableSemaphores();
+		const auto& swapchain_handle = swapchain->getSwapchainHandle();
+		const auto& swapchainImages = swapchain->getSwapchainImages();
+		const auto& swapchainImageViews = swapchain->getSwapchainImageViews();
+		const auto& swapchainImageExtent = swapchain->getSwapchainImageExtent();
 
-			auto [result, image_idx] = swapchain_handle.acquireNextImage(UINT64_MAX, *imageReadySemaphores[frame_idx]);
+		logical_device.waitForFences(*commandBufferAvailableFences[frame_idx], VK_TRUE, UINT64_MAX);
+		logical_device.resetFences(*commandBufferAvailableFences[frame_idx]);
 
-			commandBuffers[frame_idx].begin({});
+		auto [res,image_idx] = swapchain_handle.acquireNextImage(UINT64_MAX, *imagePaintableSemaphores[frame_idx]);
 
-			VkImageMemoryBarrier2 transition_optimal_color_attachment_barrier{
-				.sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER_2,
-				.pNext = NULL,
-				.srcStageMask = VK_PIPELINE_STAGE_2_COLOR_ATTACHMENT_OUTPUT_BIT,
-				.srcAccessMask = {},
-				.dstStageMask = VK_PIPELINE_STAGE_2_COLOR_ATTACHMENT_OUTPUT_BIT,
-				.dstAccessMask = VK_ACCESS_2_COLOR_ATTACHMENT_WRITE_BIT,
-				.oldLayout = VK_IMAGE_LAYOUT_UNDEFINED,
-				.newLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL,
-				.srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED,
-				.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED,
-				.image = swapchainImages[image_idx],
-				.subresourceRange = {
-					.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT,
-					.baseMipLevel = 0,
-					.levelCount = 1,
-					.baseArrayLayer = 0,
-					.layerCount = 1
-				}				
-			};
+		commandBuffers[frame_idx].begin({});
 
-			VkDependencyInfo transition_optimal_color_attachment_dependency{
-				.sType = VK_STRUCTURE_TYPE_DEPENDENCY_INFO,
-				.pNext = NULL,
-				.dependencyFlags = {},
-				.memoryBarrierCount = 0,
-				.pMemoryBarriers = NULL,
-				.bufferMemoryBarrierCount = 0,
-				.pBufferMemoryBarriers = NULL,
-				.imageMemoryBarrierCount = 1,
-				.pImageMemoryBarriers = &transition_optimal_color_attachment_barrier
-			};
+		VkImageMemoryBarrier2 transition_optimal_color_attachment_barrier{
+			.sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER_2,
+			.pNext = NULL,
+			.srcStageMask = VK_PIPELINE_STAGE_2_COLOR_ATTACHMENT_OUTPUT_BIT,
+			.srcAccessMask = {},
+			.dstStageMask = VK_PIPELINE_STAGE_2_COLOR_ATTACHMENT_OUTPUT_BIT,
+			.dstAccessMask = VK_ACCESS_2_COLOR_ATTACHMENT_WRITE_BIT,
+			.oldLayout = VK_IMAGE_LAYOUT_UNDEFINED,
+			.newLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL,
+			.srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED,
+			.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED,
+			.image = swapchainImages[image_idx],
+			.subresourceRange = {
+				.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT,
+				.baseMipLevel = 0,
+				.levelCount = 1,
+				.baseArrayLayer = 0,
+				.layerCount = 1
+			}				
+		};
 
-			commandBuffers[frame_idx].pipelineBarrier2(vk::DependencyInfo(transition_optimal_color_attachment_dependency)); 
+		VkDependencyInfo transition_optimal_color_attachment_dependency{
+			.sType = VK_STRUCTURE_TYPE_DEPENDENCY_INFO,
+			.pNext = NULL,
+			.dependencyFlags = {},
+			.memoryBarrierCount = 0,
+			.pMemoryBarriers = NULL,
+			.bufferMemoryBarrierCount = 0,
+			.pBufferMemoryBarriers = NULL,
+			.imageMemoryBarrierCount = 1,
+			.pImageMemoryBarriers = &transition_optimal_color_attachment_barrier
+		};
 
-			vk::ClearColorValue clearVal(0, 0, 0, 1);
-			VkRenderingAttachmentInfo renderingAttachment{
-				.sType = VK_STRUCTURE_TYPE_RENDERING_ATTACHMENT_INFO,
-				.pNext = NULL,
-				.imageView = (VkImageView)*swapchainImageViews[image_idx],
-				.imageLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL,
-				.loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR,
-				.storeOp = VK_ATTACHMENT_STORE_OP_STORE,
-				.clearValue = {.color = (VkClearColorValue)clearVal},
-			};
+		commandBuffers[frame_idx].pipelineBarrier2(vk::DependencyInfo(transition_optimal_color_attachment_dependency)); 
 
-			VkRenderingInfo renderingInfo{
-				.sType = VK_STRUCTURE_TYPE_RENDERING_INFO,
-				.pNext = NULL,
-				.flags = {},
-				.renderArea = {.offset = {0,0}, .extent = (VkExtent2D)*swapchainImageExtent},
-				.layerCount = 1,
-				.viewMask = 0,
-				.colorAttachmentCount = 1,
-				.pColorAttachments = &renderingAttachment
-			};
+		vk::ClearColorValue clearVal(0.f, 0.f, 0.f, 1.f);
+		VkRenderingAttachmentInfo renderingAttachment{
+			.sType = VK_STRUCTURE_TYPE_RENDERING_ATTACHMENT_INFO,
+			.pNext = NULL,
+			.imageView = (VkImageView)*swapchainImageViews[image_idx],
+			.imageLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL,
+			.loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR,
+			.storeOp = VK_ATTACHMENT_STORE_OP_STORE,
+			.clearValue = {.color = (VkClearColorValue)clearVal},
+		};
 
-			commandBuffers[frame_idx].beginRendering(renderingInfo);
+		VkRenderingInfo renderingInfo{
+			.sType = VK_STRUCTURE_TYPE_RENDERING_INFO,
+			.pNext = NULL,
+			.flags = {},
+			.renderArea = {.offset = {0,0}, .extent = (VkExtent2D)*swapchainImageExtent},
+			.layerCount = 1,
+			.viewMask = 0,
+			.colorAttachmentCount = 1,
+			.pColorAttachments = &renderingAttachment
+		};
 
-			commandBuffers[frame_idx].bindPipeline(vk::PipelineBindPoint::eGraphics, *graphicsPipeline->getPipelineHandle());
-			commandBuffers[frame_idx].draw(3, 1, 0, 0);
+		commandBuffers[frame_idx].beginRendering(renderingInfo);
 
-			commandBuffers[frame_idx].endRendering();
+		commandBuffers[frame_idx].bindPipeline(vk::PipelineBindPoint::eGraphics, *graphicsPipeline->getPipelineHandle());
+		commandBuffers[frame_idx].draw(3, 1, 0, 0);
 
-			VkImageMemoryBarrier2 transition_presentation_barrier{
-				.sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER_2,
-				.pNext = NULL,
-				.srcStageMask = VK_PIPELINE_STAGE_2_COLOR_ATTACHMENT_OUTPUT_BIT,
-				.srcAccessMask = VK_ACCESS_2_COLOR_ATTACHMENT_WRITE_BIT,
-				.dstStageMask = VK_PIPELINE_STAGE_2_BOTTOM_OF_PIPE_BIT,
-				.dstAccessMask = {},
-				.oldLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL,
-				.newLayout = VK_IMAGE_LAYOUT_PRESENT_SRC_KHR,
-				.srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED,
-				.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED,
-				.image = swapchainImages[image_idx],
-				.subresourceRange = {
-					.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT,
-					.baseMipLevel = 0,
-					.levelCount = 1,
-					.baseArrayLayer = 0,
-					.layerCount = 1
-				}
-			};
+		commandBuffers[frame_idx].endRendering();
 
-			VkDependencyInfo transition_presentation_dependency{
-				.sType = VK_STRUCTURE_TYPE_DEPENDENCY_INFO,
-				.pNext = NULL,
-				.dependencyFlags = {},
-				.memoryBarrierCount = 0,
-				.pMemoryBarriers = NULL,
-				.bufferMemoryBarrierCount = 0,
-				.pBufferMemoryBarriers = NULL,
-				.imageMemoryBarrierCount = 1,
-				.pImageMemoryBarriers = &transition_presentation_barrier
-			};
+		VkImageMemoryBarrier2 transition_presentation_barrier{
+			.sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER_2,
+			.pNext = NULL,
+			.srcStageMask = VK_PIPELINE_STAGE_2_COLOR_ATTACHMENT_OUTPUT_BIT,
+			.srcAccessMask = VK_ACCESS_2_COLOR_ATTACHMENT_WRITE_BIT,
+			.dstStageMask = VK_PIPELINE_STAGE_2_BOTTOM_OF_PIPE_BIT,
+			.dstAccessMask = {},
+			.oldLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL,
+			.newLayout = VK_IMAGE_LAYOUT_PRESENT_SRC_KHR,
+			.srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED,
+			.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED,
+			.image = swapchainImages[image_idx],
+			.subresourceRange = {
+				.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT,
+				.baseMipLevel = 0,
+				.levelCount = 1,
+				.baseArrayLayer = 0,
+				.layerCount = 1
+			}
+		};
 
-			commandBuffers[frame_idx].pipelineBarrier2(vk::DependencyInfo(transition_presentation_dependency));
-			commandBuffers[frame_idx].end();
+		VkDependencyInfo transition_presentation_dependency{
+			.sType = VK_STRUCTURE_TYPE_DEPENDENCY_INFO,
+			.pNext = NULL,
+			.dependencyFlags = {},
+			.memoryBarrierCount = 0,
+			.pMemoryBarriers = NULL,
+			.bufferMemoryBarrierCount = 0,
+			.pBufferMemoryBarriers = NULL,
+			.imageMemoryBarrierCount = 1,
+			.pImageMemoryBarriers = &transition_presentation_barrier
+		};
 
-			VkSemaphore imageReadySemaphore = (VkSemaphore)*imageReadySemaphores[frame_idx];
-			VkPipelineStageFlags waitDestStageMask = VkPipelineStageFlagBits::VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
-			VkCommandBuffer commandBuffer = (VkCommandBuffer)*commandBuffers[frame_idx];
-			VkSemaphore imagePaintedSemaphore = (VkSemaphore)*imagePaintedSemaphores[image_idx];
+		commandBuffers[frame_idx].pipelineBarrier2(vk::DependencyInfo(transition_presentation_dependency));
+		commandBuffers[frame_idx].end();
 
-			VkSubmitInfo submitInfo{
-				.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO,
-				.pNext = NULL,
-				.waitSemaphoreCount = 1,
-				.pWaitSemaphores = &imageReadySemaphore,
-				.pWaitDstStageMask = &waitDestStageMask,
-				.commandBufferCount = 1,
-				.pCommandBuffers = &commandBuffer,
-				.signalSemaphoreCount = 1,
-				.pSignalSemaphores = &imagePaintedSemaphore,
-			};
+		VkSemaphore imageReadySemaphore = (VkSemaphore)*imagePaintableSemaphores[frame_idx];
+		VkPipelineStageFlags waitDestStageMask = VkPipelineStageFlagBits::VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
+		VkCommandBuffer commandBuffer = (VkCommandBuffer)*commandBuffers[frame_idx];
+		VkSemaphore imagePaintedSemaphore = (VkSemaphore)*imagePresentableSemaphores[image_idx];
 
-			graphicsQueue.submit(vk::SubmitInfo(submitInfo), *bufferReadyFences[frame_idx]);
-			VkSwapchainKHR sc = (VkSwapchainKHR)*swapchain->getSwapchainHandle();
+		VkSubmitInfo submitInfo{
+			.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO,
+			.pNext = NULL,
+			.waitSemaphoreCount = 1,
+			.pWaitSemaphores = &imageReadySemaphore,
+			.pWaitDstStageMask = &waitDestStageMask,
+			.commandBufferCount = 1,
+			.pCommandBuffers = &commandBuffer,
+			.signalSemaphoreCount = 1,
+			.pSignalSemaphores = &imagePaintedSemaphore,
+		};
 
-			VkPresentInfoKHR presentInfo{
-				.sType = VK_STRUCTURE_TYPE_PRESENT_INFO_KHR,
-				.pNext = NULL,
-				.waitSemaphoreCount = 1,
-				.pWaitSemaphores = &imagePaintedSemaphore,
-				.swapchainCount = 1,
-				.pSwapchains = &sc,
-				.pImageIndices = &image_idx
-			};
+		graphicsQueue.submit(vk::SubmitInfo(submitInfo), *commandBufferAvailableFences[frame_idx]);
+		VkSwapchainKHR sc = (VkSwapchainKHR)*swapchain->getSwapchainHandle();
 
-			graphicsQueue.presentKHR(presentInfo);
+		VkPresentInfoKHR presentInfo{
+			.sType = VK_STRUCTURE_TYPE_PRESENT_INFO_KHR,
+			.pNext = NULL,
+			.waitSemaphoreCount = 1,
+			.pWaitSemaphores = &imagePaintedSemaphore,
+			.swapchainCount = 1,
+			.pSwapchains = &sc,
+			.pImageIndices = &image_idx
+		};
 
-		}
+		graphicsQueue.presentKHR(presentInfo);
+		frames_in_flight++;
 	}
 
 	void Renderer::destroyVulkanInstance()

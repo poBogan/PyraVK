@@ -50,7 +50,7 @@ namespace pyra
 			vk::SampleCountFlagBits sampleCount = vk::SampleCountFlagBits::e1
 		);
 
-		void drawFrames();
+		void drawFrame();
 
 		void destroyVulkanInstance();
 		void destroyWindowSurface();

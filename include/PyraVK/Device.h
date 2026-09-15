@@ -14,9 +14,8 @@ namespace pyra
 		vk::raii::Queue graphicsQueueHandle = nullptr;
 		vk::raii::CommandPool commandPool = nullptr;
 		vk::raii::CommandBuffers commandBuffers = nullptr;
-		std::vector<vk::raii::Fence> commandBufferFences{}; 
-		std::vector<vk::raii::Semaphore> imagePaintedSemaphores{};
-		std::vector<vk::raii::Semaphore> imageReadySemaphores{};
+		std::vector<vk::raii::Fence> commandBufferAvailableFences{}; 
+		std::vector<vk::raii::Semaphore> targetImagePaintableSemaphores{};
 		uint32_t frames_in_flight_ = 0;
 
 		std::vector<const char*>device_extentions;
@@ -38,9 +37,8 @@ namespace pyra
 		const vk::raii::Device& getLogicalDeviceHandle() const;
 		const vk::raii::Queue& getGraphicsQueueHandle() const;
 		const vk::raii::CommandBuffers& getCommandBuffers() const;
-		const std::vector<vk::raii::Fence>& getCommandBufferFences() const; 
-		const std::vector<vk::raii::Semaphore>& getImagePaintedSemaphores() const;
-		const std::vector<vk::raii::Semaphore>& getImageReadySemaphores() const;
+		const std::vector<vk::raii::Fence>& getCommandBufferAvailableFences() const; 
+		const std::vector<vk::raii::Semaphore>& getTargetImagePaintableSemaphores() const;
 		const uint32_t getFramesInFlightCount() const;
 	};
 

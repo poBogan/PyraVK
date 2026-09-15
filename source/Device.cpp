@@ -136,9 +136,8 @@ namespace pyra
 
 		for (int a = 1;a <= frames_in_flight;a++)
 		{
-			commandBufferFences.push_back(vk::raii::Fence(logicalDeviceHandle,vk::FenceCreateInfo(fenceInfo)));
-			imagePaintedSemaphores.push_back(vk::raii::Semaphore(logicalDeviceHandle, vk::SemaphoreCreateInfo(semaphoreInfo)));
-			imageReadySemaphores.push_back(vk::raii::Semaphore(logicalDeviceHandle, vk::SemaphoreCreateInfo(semaphoreInfo)));
+			commandBufferAvailableFences.push_back(vk::raii::Fence(logicalDeviceHandle,vk::FenceCreateInfo(fenceInfo)));
+			targetImagePaintableSemaphores.push_back(vk::raii::Semaphore(logicalDeviceHandle, vk::SemaphoreCreateInfo(semaphoreInfo)));
 		}
 
 		this->frames_in_flight_ = frames_in_flight;
@@ -177,17 +176,14 @@ namespace pyra
 	{
 		return commandBuffers;
 	}
-	const std::vector<vk::raii::Fence>& pyra::Device::getCommandBufferFences() const
+	const std::vector<vk::raii::Fence>& pyra::Device::getCommandBufferAvailableFences() const
 	{
-		return commandBufferFences;
+		return commandBufferAvailableFences;
 	}
-	const std::vector<vk::raii::Semaphore>& pyra::Device::getImagePaintedSemaphores() const
+
+	const std::vector<vk::raii::Semaphore>& Device::getTargetImagePaintableSemaphores() const
 	{
-		return imagePaintedSemaphores;
-	}
-	const std::vector<vk::raii::Semaphore>& Device::getImageReadySemaphores() const
-	{
-		return imageReadySemaphores;
+		return targetImagePaintableSemaphores;
 	}
 	const uint32_t pyra::Device::getFramesInFlightCount() const
 	{

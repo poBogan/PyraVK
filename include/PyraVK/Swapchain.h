@@ -15,6 +15,7 @@ namespace pyra
 
 		vk::Extent2D swapchainImageExtent;
 		vk::SurfaceFormatKHR swapchainImageFormat;
+		std::vector<vk::raii::Semaphore> imagePresentableSemaphores{};
 	public : 
 
 		Swapchain(
@@ -29,6 +30,7 @@ namespace pyra
 		const vk::raii::SwapchainKHR& getSwapchainHandle() const;
 		const std::vector<vk::Image>& getSwapchainImages() const; 
 		const std::vector<vk::raii::ImageView>& getSwapchainImageViews() const;
+		const std::vector<vk::raii::Semaphore>& getImagePresentableSemaphores() const;
 
 		vk::Extent2D getSwapchainImageExtent() const; 
 		uint32_t getSwapchainImageCount() const;
