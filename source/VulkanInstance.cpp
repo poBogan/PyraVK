@@ -13,6 +13,7 @@ namespace pyra
 			VkApplicationInfo appInfo
 			{
 				.sType = VK_STRUCTURE_TYPE_APPLICATION_INFO,
+				.pNext = NULL,
 				.pApplicationName = "PyraVK App",
 				.applicationVersion = VK_MAKE_VERSION(1,0,0),
 				.pEngineName = "PyraVK Engine",
@@ -23,6 +24,8 @@ namespace pyra
 			VkInstanceCreateInfo instanceInfo
 			{
 				.sType = VK_STRUCTURE_TYPE_INSTANCE_CREATE_INFO,
+				.pNext = NULL,
+				.flags = NULL,
 				.pApplicationInfo = &appInfo,
 				.enabledLayerCount = (uint32_t)this->layers.size(),
 				.ppEnabledLayerNames = this->layers.data(),
@@ -30,7 +33,7 @@ namespace pyra
 				.ppEnabledExtensionNames = this->extentions.data()
 			};
 
-			handle = vk::raii::Instance(context, instanceInfo);
+			handle = vk::raii::Instance(context, vk::InstanceCreateInfo(instanceInfo));
 		}
 		catch (std::exception& e)
 		{

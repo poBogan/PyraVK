@@ -56,6 +56,8 @@ namespace pyra
 
 		VkSwapchainCreateInfoKHR swapchainInfo{
 			.sType = VK_STRUCTURE_TYPE_SWAPCHAIN_CREATE_INFO_KHR,
+			.pNext = NULL,
+			.flags = NULL,
 			.surface = *surface.getSurfaceHandle(),
 			.minImageCount = targetImageCount,
 			.imageFormat = (VkFormat)swapchainImageFormat.format,
@@ -71,7 +73,7 @@ namespace pyra
 			.oldSwapchain = VK_NULL_HANDLE
 		};
 
-		handle = vk::raii::SwapchainKHR(renderDevice.getLogicalDeviceHandle(), swapchainInfo);
+		handle = vk::raii::SwapchainKHR(renderDevice.getLogicalDeviceHandle(), vk::SwapchainCreateInfoKHR(swapchainInfo));
 
 		swapchainImages = handle.getImages();
 
@@ -80,17 +82,21 @@ namespace pyra
 			
 			VkImageViewCreateInfo imageViewInfo{
 				.sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO,
+				.pNext = NULL,
+				.flags = NULL,
 				.image = (VkImage)image,
 				.viewType = VkImageViewType::VK_IMAGE_VIEW_TYPE_2D,
 				.format = (VkFormat)swapchainImageFormat.format,
 				.components = { VkComponentSwizzle::VK_COMPONENT_SWIZZLE_IDENTITY,VkComponentSwizzle::VK_COMPONENT_SWIZZLE_IDENTITY ,VkComponentSwizzle::VK_COMPONENT_SWIZZLE_IDENTITY,VkComponentSwizzle::VK_COMPONENT_SWIZZLE_IDENTITY },
 				.subresourceRange = {
 					.aspectMask = VkImageAspectFlagBits::VK_IMAGE_ASPECT_COLOR_BIT,
+					.baseMipLevel = 0,
 					.levelCount = 1,
+					.baseArrayLayer = 0,
 					.layerCount = 1
 				}
 			};
-			swapchainImageViews.push_back(vk::raii::ImageView(renderDevice.getLogicalDeviceHandle(), imageViewInfo));
+			swapchainImageViews.push_back(vk::raii::ImageView(renderDevice.getLogicalDeviceHandle(), vk::ImageViewCreateInfo(imageViewInfo)));
 		}
 
 	}

@@ -1,25 +1,27 @@
 #pragma once
 #include <PyraVK/Definitions.h>
 #include <PyraVK/Device.h>
+#include <PyraVK/Surface.h>
 
 namespace pyra
 {
 
 	class Swapchain : public Base
 	{
-	private : 
-		vk::raii::SwapchainKHR handle = nullptr; 
-		std::vector<vk::Image> swapchainImages; 
+	private:
+		vk::raii::SwapchainKHR handle = nullptr;
+		std::vector<vk::Image> swapchainImages;
 		std::vector<vk::raii::ImageView> swapchainImageViews;
 
 		vk::Extent2D swapchainImageExtent;
 		vk::SurfaceFormatKHR swapchainImageFormat;
 	public : 
+
 		Swapchain(
-			Device& renderDevice, 
-			Surface& surface, 
+			Device& renderDevice,
+			Surface& surface,
 			vk::Extent2D windowSizeInPixels,
-			uint32_t targetImageCount, 
+			uint32_t targetImageCount,
 			std::vector<vk::SurfaceFormatKHR> imageFormatPreferences,
 			std::vector<vk::PresentModeKHR> presentModePreferences
 		);
