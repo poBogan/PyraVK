@@ -27,7 +27,8 @@ namespace pyra
 
 			bool device_features_supported = features.get<vk::PhysicalDeviceVulkan11Features>().shaderDrawParameters &&
 				features.get<vk::PhysicalDeviceVulkan13Features>().dynamicRendering &&
-				features.get<vk::PhysicalDeviceExtendedDynamicStateFeaturesEXT>().extendedDynamicState;
+				features.get<vk::PhysicalDeviceExtendedDynamicStateFeaturesEXT>().extendedDynamicState &&
+				features.get<vk::PhysicalDeviceVulkan13Features>().synchronization2;
 
 			bool suitable_queue_found = false;
 			auto queue_families = physical_device.getQueueFamilyProperties();
@@ -59,6 +60,14 @@ namespace pyra
 		return suitableRenderDevices;
 	}
 
+	Device::Device(vk::raii::PhysicalDevice physical_device, uint32_t graphics_queue_family_index, std::vector<const char*>device_extentions)
+	{
+		physicalDeviceHandle = physical_device;
+		this->device_extentions = device_extentions;
+		this->graphics_queue_family_index = graphics_queue_family_index;
+		deviceProperties = physicalDeviceHandle.getProperties();
+	}
+
 	void Device::constructDeviceHandles()
 	{
 		float queuePriority = 0.5f;
@@ -76,6 +85,7 @@ namespace pyra
 		features.get<vk::PhysicalDeviceVulkan11Features>().shaderDrawParameters = true;
 		features.get<vk::PhysicalDeviceVulkan13Features>().dynamicRendering = true;
 		features.get<vk::PhysicalDeviceExtendedDynamicStateFeaturesEXT>().extendedDynamicState = true;
+		features.get<vk::PhysicalDeviceVulkan13Features>().synchronization2 = true;
 
 		VkDeviceCreateInfo deviceInfo{
 			.sType = VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO,
@@ -91,12 +101,47 @@ namespace pyra
 		graphicsQueueHandle = vk::raii::Queue(logicalDeviceHandle, this->graphics_queue_family_index, 0);
 	}
 
-	Device::Device(vk::raii::PhysicalDevice physical_device, uint32_t graphics_queue_family_index, std::vector<const char*>device_extentions)
+	void Device::constructCommandBuffers(uint32_t frames_in_flight)
 	{
-		physicalDeviceHandle = physical_device;
-		this->device_extentions = device_extentions; 
-		this->graphics_queue_family_index = graphics_queue_family_index;
-		deviceProperties = physicalDeviceHandle.getProperties();
+		VkCommandPoolCreateInfo commandPoolInfo{
+			.sType = VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO,
+			.pNext = NULL,
+			.flags = {VkCommandPoolCreateFlagBits::VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT},
+			.queueFamilyIndex = graphics_queue_family_index
+		}; 
+
+		commandPool = vk::raii::CommandPool(logicalDeviceHandle, vk::CommandPoolCreateInfo(commandPoolInfo)); 
+
+		VkCommandBufferAllocateInfo commandBufferAllocateInfo{
+			.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO,
+			.pNext = NULL,
+			.commandPool = (VkCommandPool)*commandPool,
+			.level = VK_COMMAND_BUFFER_LEVEL_PRIMARY,
+			.commandBufferCount = frames_in_flight
+		}; 
+
+		commandBuffers = vk::raii::CommandBuffers(logicalDeviceHandle, vk::CommandBufferAllocateInfo(commandBufferAllocateInfo));
+
+		VkSemaphoreCreateInfo semaphoreInfo{
+				.sType = VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO,
+				.pNext = NULL,
+				.flags = {}
+		};
+
+		VkFenceCreateInfo fenceInfo{
+			.sType = VK_STRUCTURE_TYPE_FENCE_CREATE_INFO,
+			.pNext = NULL,
+			.flags = VkFenceCreateFlagBits::VK_FENCE_CREATE_SIGNALED_BIT
+		};
+
+		for (int a = 1;a <= frames_in_flight;a++)
+		{
+			commandBufferFences.push_back(vk::raii::Fence(logicalDeviceHandle,vk::FenceCreateInfo(fenceInfo)));
+			imagePaintedSemaphores.push_back(vk::raii::Semaphore(logicalDeviceHandle, vk::SemaphoreCreateInfo(semaphoreInfo)));
+			imageReadySemaphores.push_back(vk::raii::Semaphore(logicalDeviceHandle, vk::SemaphoreCreateInfo(semaphoreInfo)));
+		}
+
+		this->frames_in_flight_ = frames_in_flight;
 	}
 
 	vk::PhysicalDeviceProperties Device::getDeviceProperties() const
@@ -127,6 +172,26 @@ namespace pyra
 	const vk::raii::Queue& Device::getGraphicsQueueHandle() const
 	{
 		return graphicsQueueHandle;
+	}
+	const vk::raii::CommandBuffers& pyra::Device::getCommandBuffers() const
+	{
+		return commandBuffers;
+	}
+	const std::vector<vk::raii::Fence>& pyra::Device::getCommandBufferFences() const
+	{
+		return commandBufferFences;
+	}
+	const std::vector<vk::raii::Semaphore>& pyra::Device::getImagePaintedSemaphores() const
+	{
+		return imagePaintedSemaphores;
+	}
+	const std::vector<vk::raii::Semaphore>& Device::getImageReadySemaphores() const
+	{
+		return imageReadySemaphores;
+	}
+	const uint32_t pyra::Device::getFramesInFlightCount() const
+	{
+		return frames_in_flight_;
 	}
 
 

@@ -15,23 +15,30 @@ int main()
 	pyra::Renderer::createRenderer();
 	auto& renderer = pyra::Renderer::getRenderer(); 
 
-	renderer.setVulkanInstance(extension_names);
+	renderer.constructVulkanInstance(extension_names);
 
 	VkSurfaceKHR s; 
 	glfwCreateWindowSurface(*renderer.getVulkanInstance().getVulkanInstanceHandle(), window, nullptr, &s);
-	renderer.setWindowSurface(s);
+	renderer.constructWindowSurface(s);
 
-	auto devices = renderer.getSuitableDevices();
-	renderer.selectDevice(std::move(devices[0]));
+	auto devices = renderer.getSuitableRenderDevices();
+	renderer.selectRenderDevice(std::move(devices[0]));
 
 	int width, height; 
 	glfwGetFramebufferSize(window, &width, &height);
-	renderer.setSwapchain({ (uint32_t)width, (uint32_t)height });
+	renderer.constructSwapchain({ (uint32_t)width, (uint32_t)height });
+
+	VkViewport viewport{ 0,0,width,height,0,1 };
+	VkRect2D scissor{ {0,0},{width,height} };
+	renderer.constructGraphicsPipeline(vk::Viewport(viewport),vk::Rect2D(scissor));
 
 	while (!glfwWindowShouldClose(window))
 	{
 		glfwPollEvents();
+		renderer.drawFrames();
 	}
+
+	renderer.getRenderDevice().getLogicalDeviceHandle().waitIdle();
 
 	glfwDestroyWindow(window); 
 	glfwTerminate();

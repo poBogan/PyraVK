@@ -2,7 +2,6 @@
 #include <PyraVK/Definitions.h>
 #include <PyraVK/Surface.h>
 
-
 namespace pyra
 {
 
@@ -11,7 +10,14 @@ namespace pyra
 	private : 
 		vk::raii::PhysicalDevice physicalDeviceHandle = nullptr;
 		vk::raii::Device logicalDeviceHandle = nullptr; 
-		vk::raii::Queue graphicsQueueHandle = nullptr; 
+
+		vk::raii::Queue graphicsQueueHandle = nullptr;
+		vk::raii::CommandPool commandPool = nullptr;
+		vk::raii::CommandBuffers commandBuffers = nullptr;
+		std::vector<vk::raii::Fence> commandBufferFences{}; 
+		std::vector<vk::raii::Semaphore> imagePaintedSemaphores{};
+		std::vector<vk::raii::Semaphore> imageReadySemaphores{};
+		uint32_t frames_in_flight_ = 0;
 
 		std::vector<const char*>device_extentions;
 		uint32_t graphics_queue_family_index = 0;
@@ -22,6 +28,7 @@ namespace pyra
 		static std::vector<Device> getSuitableDevices(VulkanInstance& instance, Surface& surface, std::vector<const char*> device_extentions);
 
 		void constructDeviceHandles();
+		void constructCommandBuffers(uint32_t frames_in_flight);
 
 		vk::PhysicalDeviceProperties getDeviceProperties() const;
 		uint32_t get_graphics_queue_family_index() const;
@@ -30,6 +37,11 @@ namespace pyra
 		const vk::raii::PhysicalDevice& getPhysicalDeviceHandle() const; 
 		const vk::raii::Device& getLogicalDeviceHandle() const;
 		const vk::raii::Queue& getGraphicsQueueHandle() const;
+		const vk::raii::CommandBuffers& getCommandBuffers() const;
+		const std::vector<vk::raii::Fence>& getCommandBufferFences() const; 
+		const std::vector<vk::raii::Semaphore>& getImagePaintedSemaphores() const;
+		const std::vector<vk::raii::Semaphore>& getImageReadySemaphores() const;
+		const uint32_t getFramesInFlightCount() const;
 	};
 
 }
