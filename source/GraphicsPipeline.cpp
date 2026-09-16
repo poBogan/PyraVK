@@ -31,7 +31,8 @@ namespace pyra
 		vk::FrontFace frontFace,
 		vk::PolygonMode polygonMode,
 		vk::SampleCountFlagBits sampleCount
-	)
+	) : targetFormat_(targetFormat), viewport_(viewport), scissor_(scissor), primitiveTopology_(primitiveTopology),
+		faceCulling_(faceCulling), frontFace_(frontFace), polygonMode_(polygonMode), sampleCount_(sampleCount)
 	{
 		auto code = readFile(pyra_shader_path);
 
@@ -171,6 +172,46 @@ namespace pyra
 	const vk::raii::Pipeline& GraphicsPipeline::getPipelineHandle() const
 	{
 		return handle;
+	}
+
+	const vk::Format GraphicsPipeline::getTargetFormat() const
+	{
+		return targetFormat_;
+	}
+
+	const vk::Viewport GraphicsPipeline::getViewport() const
+	{
+		return viewport_;
+	}
+
+	const vk::Rect2D GraphicsPipeline::getScissor() const
+	{
+		return scissor_;
+	}
+
+	const vk::PrimitiveTopology GraphicsPipeline::getPrimitiveTopology() const
+	{
+		return primitiveTopology_;
+	}
+
+	const vk::CullModeFlagBits GraphicsPipeline::getCullMode() const
+	{
+		return faceCulling_;
+	}
+
+	const vk::FrontFace GraphicsPipeline::getFrontFace() const
+	{
+		return frontFace_;
+	}
+
+	const vk::PolygonMode GraphicsPipeline::getPolygonMode() const
+	{
+		return polygonMode_;
+	}
+
+	const vk::SampleCountFlagBits GraphicsPipeline::getSampleCount() const
+	{
+		return sampleCount_;
 	}
 
 }
