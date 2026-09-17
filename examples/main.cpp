@@ -28,14 +28,9 @@ int main()
 	glfwGetFramebufferSize(window, &width, &height);
 	renderer.constructSwapchain({ (uint32_t)width, (uint32_t)height });
 
-	VkViewport viewport{ 0,0,width,height,0,1 };
-	VkRect2D scissor{ {0,0},{width,height} };
-	renderer.constructGraphicsPipeline(vk::Viewport(viewport),vk::Rect2D(scissor));
-
 	while (!glfwWindowShouldClose(window))
 	{
 		glfwPollEvents();
-		renderer.drawFrame();
 	}
 
 	renderer.getRenderDevice().getLogicalDeviceHandle().waitIdle();

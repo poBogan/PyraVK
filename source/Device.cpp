@@ -64,18 +64,24 @@ namespace pyra
 	{
 		physicalDeviceHandle = physical_device;
 		this->device_extentions = device_extentions;
-		this->graphics_queue_family_index = graphics_queue_family_index;
+		this->graphicsQueueFamilyIndex = graphics_queue_family_index;
 		deviceProperties = physicalDeviceHandle.getProperties();
 	}
 
 	void Device::constructDeviceHandles()
 	{
+		if (logicalDeviceHandle != nullptr)
+		{
+			spdlog::warn("{:} - Device handles already constructed. Skipping...", __FUNCTION__);
+			return;
+		}
+
 		float queuePriority = 0.5f;
 		VkDeviceQueueCreateInfo queueInfo{
 			.sType = VK_STRUCTURE_TYPE_DEVICE_QUEUE_CREATE_INFO,
 			.pNext = NULL,
 			.flags = NULL,
-			.queueFamilyIndex = this->graphics_queue_family_index,
+			.queueFamilyIndex = this->graphicsQueueFamilyIndex,
 			.queueCount = 1,
 			.pQueuePriorities = &queuePriority
 		};
@@ -98,59 +104,37 @@ namespace pyra
 		};
 
 		logicalDeviceHandle = vk::raii::Device(physicalDeviceHandle, vk::DeviceCreateInfo(deviceInfo));
-		graphicsQueueHandle = vk::raii::Queue(logicalDeviceHandle, this->graphics_queue_family_index, 0);
-	}
+		graphicsQueueHandle = vk::raii::Queue(logicalDeviceHandle, this->graphicsQueueFamilyIndex, 0);
 
-	void Device::constructCommandBuffers(uint32_t frames_in_flight)
-	{
 		VkCommandPoolCreateInfo commandPoolInfo{
 			.sType = VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO,
 			.pNext = NULL,
-			.flags = {VkCommandPoolCreateFlagBits::VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT},
-			.queueFamilyIndex = graphics_queue_family_index
-		}; 
-
-		commandPool = vk::raii::CommandPool(logicalDeviceHandle, vk::CommandPoolCreateInfo(commandPoolInfo)); 
-
-		VkCommandBufferAllocateInfo commandBufferAllocateInfo{
-			.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO,
-			.pNext = NULL,
-			.commandPool = (VkCommandPool)*commandPool,
-			.level = VK_COMMAND_BUFFER_LEVEL_PRIMARY,
-			.commandBufferCount = frames_in_flight
-		}; 
-
-		commandBuffers = vk::raii::CommandBuffers(logicalDeviceHandle, vk::CommandBufferAllocateInfo(commandBufferAllocateInfo));
-
-		VkSemaphoreCreateInfo semaphoreInfo{
-				.sType = VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO,
-				.pNext = NULL,
-				.flags = {}
+			.flags = {},
+			.queueFamilyIndex = graphicsQueueFamilyIndex
 		};
 
-		VkFenceCreateInfo fenceInfo{
-			.sType = VK_STRUCTURE_TYPE_FENCE_CREATE_INFO,
+		commandPoolHandle = vk::raii::CommandPool(logicalDeviceHandle, vk::CommandPoolCreateInfo(commandPoolInfo));
+
+		VkPipelineCacheCreateInfo graphicsPipelineCacheInfo{
+			.sType = VK_STRUCTURE_TYPE_PIPELINE_CACHE_CREATE_INFO,
 			.pNext = NULL,
-			.flags = VkFenceCreateFlagBits::VK_FENCE_CREATE_SIGNALED_BIT
+			.flags = {},
+			.initialDataSize = 0,
+			.pInitialData = NULL
 		};
 
-		for (int a = 1;a <= frames_in_flight;a++)
-		{
-			commandBufferAvailableFences.push_back(vk::raii::Fence(logicalDeviceHandle,vk::FenceCreateInfo(fenceInfo)));
-			targetImagePaintableSemaphores.push_back(vk::raii::Semaphore(logicalDeviceHandle, vk::SemaphoreCreateInfo(semaphoreInfo)));
-		}
-
-		this->frames_in_flight_ = frames_in_flight;
+		graphicsPipelineCache = vk::raii::PipelineCache(logicalDeviceHandle, graphicsPipelineCacheInfo);
 	}
 
-	vk::PhysicalDeviceProperties Device::getDeviceProperties() const
+
+	const vk::PhysicalDeviceProperties Device::getDeviceProperties() const
 	{
 		return deviceProperties;
 	}
 
-	uint32_t Device::get_graphics_queue_family_index() const
+	const uint32_t Device::getGraphicsQueueFamilyIndex() const
 	{
-		return graphics_queue_family_index;
+		return graphicsQueueFamilyIndex;
 	}
 
 	const std::vector<const char*>& Device::getDeviceExtentions() const
@@ -172,23 +156,10 @@ namespace pyra
 	{
 		return graphicsQueueHandle;
 	}
-	const vk::raii::CommandBuffers& pyra::Device::getCommandBuffers() const
-	{
-		return commandBuffers;
-	}
-	const std::vector<vk::raii::Fence>& pyra::Device::getCommandBufferAvailableFences() const
-	{
-		return commandBufferAvailableFences;
-	}
 
-	const std::vector<vk::raii::Semaphore>& Device::getTargetImagePaintableSemaphores() const
+	const vk::raii::CommandPool& Device::getCommandPoolHandle() const
 	{
-		return targetImagePaintableSemaphores;
+		return commandPoolHandle;
 	}
-	const uint32_t pyra::Device::getFramesInFlightCount() const
-	{
-		return frames_in_flight_;
-	}
-
 
 }

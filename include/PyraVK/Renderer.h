@@ -4,6 +4,7 @@
 #include <PyraVK/Surface.h>
 #include <PyraVK/Device.h>
 #include <PyraVK/Swapchain.h>
+#include <PyraVk/Shader.h>
 #include <PyraVK/GraphicsPipeline.h>
 
 namespace pyra
@@ -40,36 +41,23 @@ namespace pyra
 			std::vector<vk::PresentModeKHR> presentModePreferences = {vk::PresentModeKHR::eMailbox}
 		);
 
-		void constructGraphicsPipeline(
-			vk::Viewport viewport,
-			vk::Rect2D scissor,
-			vk::PrimitiveTopology primitiveTopology = vk::PrimitiveTopology::eTriangleList,
-			vk::CullModeFlagBits faceCulling = vk::CullModeFlagBits::eBack,
-			vk::FrontFace frontFace = vk::FrontFace::eClockwise,
-			vk::PolygonMode polygonMode = vk::PolygonMode::eFill,
-			vk::SampleCountFlagBits sampleCount = vk::SampleCountFlagBits::e1
-		);
-
-		void drawFrame();
+		
 
 		void destroyVulkanInstance();
 		void destroyWindowSurface();
 		void destroyRenderDevice();
 		void destroySwapchain();
-		void destroyGraphicsPipeline();
 
 		const vk::raii::Context& getContext() const;
 		const VulkanInstance& getVulkanInstance() const;
 		const Surface& getWindowSurface() const;
 		const Device& getRenderDevice() const;
 		const Swapchain& getSwapchain() const;
-		const GraphicsPipeline& getGraphicsPipeline() const;
 
 		bool vulkanInstanceExists() const; 
 		bool windowSurfaceExists() const;
 		bool renderDeviceExists() const; 
 		bool swapchainExists() const; 
-		bool graphicsPipelineExists() const;
 	};
 
 };
