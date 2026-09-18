@@ -20,7 +20,8 @@ namespace pyra
 		std::optional<Surface> windowSurface; 
 		std::optional<Device> renderDevice; 
 		std::optional<Swapchain> swapchain;
-		std::optional<GraphicsPipeline> graphicsPipeline;
+		std::unordered_map<std::string, std::shared_ptr<Shader>> shaderEntries;
+		std::unordered_map<std::string, GraphicsPipeline> graphicsPipelines;
 	public:
 		static void createRenderer();
 		static Renderer& getRenderer();
@@ -41,23 +42,33 @@ namespace pyra
 			std::vector<vk::PresentModeKHR> presentModePreferences = {vk::PresentModeKHR::eMailbox}
 		);
 
+		void addShaderEntries(std::string file, std::vector<std::string>vertexShaderEntries, std::vector<std::string>fragmentShaderEntries);
 		
+		void addGraphicsPipeline(
+			std::string pipeline_name,
+			std::string vertexShaderEntry,
+			std::string fragmentShaderEntry,
+			vk::PrimitiveTopology primitiveTopology = vk::PrimitiveTopology::eTriangleList,
+			vk::CullModeFlagBits faceCullingMode = vk::CullModeFlagBits::eBack,
+			vk::FrontFace frontFace = vk::FrontFace::eClockwise,
+			vk::SampleCountFlagBits sampleCount = vk::SampleCountFlagBits::e1
+		);
 
 		void destroyVulkanInstance();
 		void destroyWindowSurface();
 		void destroyRenderDevice();
-		void destroySwapchain();
+		void destroySwapchain(); 
+		void destroyGraphicsPipelines(); 
+		void deleteGraphicsPipeline(std::string name);
 
 		const vk::raii::Context& getContext() const;
-		const VulkanInstance& getVulkanInstance() const;
-		const Surface& getWindowSurface() const;
-		const Device& getRenderDevice() const;
-		const Swapchain& getSwapchain() const;
+		const std::optional<VulkanInstance>& getVulkanInstance() const;
+		const std::optional<Surface>& getWindowSurface() const;
+		const std::optional<Device>& getRenderDevice() const;
+		const std::optional<Swapchain>& getSwapchain() const;
+		const std::unordered_map<std::string, std::shared_ptr<Shader>>& getShaderEntries() const;
+		const std::unordered_map<std::string, GraphicsPipeline>& getGraphicsPipelines() const;
 
-		bool vulkanInstanceExists() const; 
-		bool windowSurfaceExists() const;
-		bool renderDeviceExists() const; 
-		bool swapchainExists() const; 
 	};
 
 };

@@ -3,52 +3,29 @@
 
 namespace pyra
 {
-	const char* pyra_shader_path = "pyra_shader.spirv";
-	const char* vertex_shader_entry = "VertexShaderMain"; 
-	const char* fragment_shader_entry = "FragmentShaderMain";
-
-	std::vector<char> readFile(const char* file_path)
-	{
-		std::ifstream file(file_path, std::ios::ate | std::ios::binary); 
-		if (!file.is_open()) return {};
-
-		int fileSize = file.tellg(); 
-		file.seekg(std::ios::beg, 0); 
-
-		std::vector<char> buffer(fileSize);
-		file.read(buffer.data(), fileSize);
-
-		return buffer;
-	}
 
 	GraphicsPipeline::GraphicsPipeline(
 		Device& device,
+		Shader& vertexShaderModule, std::string vertexShaderEntry,
+		Shader& fragmentShaderModule, std::string fragmentShaderEntry,
 		vk::Format targetFormat,
-		vk::Viewport viewport,
-		vk::Rect2D scissor,
 		vk::PrimitiveTopology primitiveTopology,
-		vk::CullModeFlagBits faceCulling,
+		vk::CullModeFlagBits faceCullingMode,
 		vk::FrontFace frontFace,
-		vk::PolygonMode polygonMode,
 		vk::SampleCountFlagBits sampleCount
-	) : targetFormat_(targetFormat), viewport_(viewport), scissor_(scissor), primitiveTopology_(primitiveTopology),
-		faceCulling_(faceCulling), frontFace_(frontFace), polygonMode_(polygonMode), sampleCount_(sampleCount)
+	)
 	{
-		auto code = readFile(pyra_shader_path);
-
-		VkShaderModuleCreateInfo shaderModuleInfo{
-			.sType = VK_STRUCTURE_TYPE_SHADER_MODULE_CREATE_INFO,
-			.pNext = NULL,
-			.flags = NULL,
-			.codeSize = (uint32_t)code.size(),
-			.pCode = (uint32_t*)code.data(),
-		};
-
-		shaderModule = vk::raii::ShaderModule(device.getLogicalDeviceHandle(), shaderModuleInfo);
+		this->targetFormat = targetFormat;
+		this->primitiveTopology = primitiveTopology; 
+		this->faceCullingMode = faceCullingMode; 
+		this->frontFace = frontFace; 
+		this->sampleCount = sampleCount;
+		this->vertexShaderEntry = vertexShaderEntry; 
+		this->fragmentshaderEntry = fragmentShaderEntry;
 
 		std::vector<VkPipelineShaderStageCreateInfo> shaderStages = {
-			{.sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO, .stage = VK_SHADER_STAGE_VERTEX_BIT, .module = *shaderModule, .pName = vertex_shader_entry},
-			{.sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO, .stage = VK_SHADER_STAGE_FRAGMENT_BIT, .module = *shaderModule, .pName = fragment_shader_entry},
+			{.sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO, .stage = VK_SHADER_STAGE_VERTEX_BIT, .module = (VkShaderModule)*vertexShaderModule.getShaderModuleHandle(), .pName = vertexShaderEntry.c_str()},
+			{.sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO, .stage = VK_SHADER_STAGE_FRAGMENT_BIT, .module = (VkShaderModule)*fragmentShaderModule.getShaderModuleHandle(), .pName = fragmentShaderEntry.c_str()},
 		}; 
 
 		VkPipelineVertexInputStateCreateInfo vertexInputState{
@@ -69,18 +46,23 @@ namespace pyra
 			.primitiveRestartEnable = VK_FALSE
 		};
 
-		VkViewport _viewport = (VkViewport)viewport; 
-		VkRect2D _scissor = (VkRect2D)scissor;
-
 		VkPipelineViewportStateCreateInfo viewportInfo{
 			.sType = VK_STRUCTURE_TYPE_PIPELINE_VIEWPORT_STATE_CREATE_INFO,
 			.pNext = NULL,
 			.flags = NULL,
 			.viewportCount = 1,
-			.pViewports = &_viewport,
 			.scissorCount = 1,
-			.pScissors = &_scissor
 		}; 
+
+		std::vector<VkDynamicState> dynamicStates{ VK_DYNAMIC_STATE_VIEWPORT, VK_DYNAMIC_STATE_SCISSOR };
+
+		VkPipelineDynamicStateCreateInfo dynamicStateInfo{
+			.sType = VK_STRUCTURE_TYPE_PIPELINE_DYNAMIC_STATE_CREATE_INFO,
+			.pNext = NULL,
+			.flags = {},
+			.dynamicStateCount = (uint32_t)dynamicStates.size(),
+			.pDynamicStates = dynamicStates.data()
+		};
 
 		VkPipelineRasterizationStateCreateInfo rasterizationInfo{
 			.sType = VK_STRUCTURE_TYPE_PIPELINE_RASTERIZATION_STATE_CREATE_INFO,
@@ -88,8 +70,8 @@ namespace pyra
 			.flags = NULL,
 			.depthClampEnable = VK_FALSE,
 			.rasterizerDiscardEnable = VK_FALSE,
-			.polygonMode = (VkPolygonMode)polygonMode,
-			.cullMode = (VkCullModeFlags)faceCulling,
+			.polygonMode = VK_POLYGON_MODE_FILL,
+			.cullMode = (VkCullModeFlags)faceCullingMode,
 			.frontFace = (VkFrontFace)frontFace,
 			.depthBiasEnable = VK_FALSE,
 			.lineWidth = 1
@@ -161,57 +143,52 @@ namespace pyra
 			.pRasterizationState = &rasterizationInfo,
 			.pMultisampleState = &multisampleStateInfo,
 			.pColorBlendState = &colorBlendStateInfo,
-			.pDynamicState = NULL,
+			.pDynamicState = &dynamicStateInfo,
 			.layout = (VkPipelineLayout)*pipelineLayout,
 			.renderPass = nullptr,
 		};
 
-		handle = vk::raii::Pipeline(device.getLogicalDeviceHandle(), nullptr, vk::GraphicsPipelineCreateInfo(graphicsPipelineCreateInfo));
+		handle = vk::raii::Pipeline(device.getLogicalDeviceHandle(),device.getGraphicsPipelineCacheHandle(), vk::GraphicsPipelineCreateInfo(graphicsPipelineCreateInfo));
 	}
 
-	const vk::raii::Pipeline& GraphicsPipeline::getPipelineHandle() const
+	std::string GraphicsPipeline::getVertexShaderEntry() const
+	{
+		return vertexShaderEntry;
+	}
+
+	std::string GraphicsPipeline::getFragmentShaderEntry() const
+	{
+		return fragmentshaderEntry;
+	}
+
+	vk::Format GraphicsPipeline::getTargetFormat() const
+	{
+		return targetFormat;
+	}
+
+	vk::PrimitiveTopology GraphicsPipeline::getPrimitiveTopology() const
+	{
+		return primitiveTopology;
+	}
+
+	vk::CullModeFlagBits GraphicsPipeline::getFaceCullingMode() const
+	{
+		return faceCullingMode;
+	}
+
+	vk::FrontFace GraphicsPipeline::getFrontFace() const
+	{
+		return frontFace;
+	}
+
+	vk::SampleCountFlagBits GraphicsPipeline::getSampleCount() const
+	{
+		return sampleCount;
+	}
+
+	const vk::raii::Pipeline& GraphicsPipeline::getGraphicsPipelineHandle() const
 	{
 		return handle;
-	}
-
-	const vk::Format GraphicsPipeline::getTargetFormat() const
-	{
-		return targetFormat_;
-	}
-
-	const vk::Viewport GraphicsPipeline::getViewport() const
-	{
-		return viewport_;
-	}
-
-	const vk::Rect2D GraphicsPipeline::getScissor() const
-	{
-		return scissor_;
-	}
-
-	const vk::PrimitiveTopology GraphicsPipeline::getPrimitiveTopology() const
-	{
-		return primitiveTopology_;
-	}
-
-	const vk::CullModeFlagBits GraphicsPipeline::getCullMode() const
-	{
-		return faceCulling_;
-	}
-
-	const vk::FrontFace GraphicsPipeline::getFrontFace() const
-	{
-		return frontFace_;
-	}
-
-	const vk::PolygonMode GraphicsPipeline::getPolygonMode() const
-	{
-		return polygonMode_;
-	}
-
-	const vk::SampleCountFlagBits GraphicsPipeline::getSampleCount() const
-	{
-		return sampleCount_;
 	}
 
 }

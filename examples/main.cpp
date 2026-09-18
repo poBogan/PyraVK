@@ -15,10 +15,10 @@ int main()
 	pyra::Renderer::createRenderer();
 	auto& renderer = pyra::Renderer::getRenderer(); 
 
-	renderer.constructVulkanInstance(extension_names);
+	renderer.constructVulkanInstance(extension_names,{});
 
 	VkSurfaceKHR s; 
-	glfwCreateWindowSurface(*renderer.getVulkanInstance().getVulkanInstanceHandle(), window, nullptr, &s);
+	glfwCreateWindowSurface(*renderer.getVulkanInstance().value().getVulkanInstanceHandle(), window, nullptr, &s);
 	renderer.constructWindowSurface(s);
 
 	auto devices = renderer.getSuitableRenderDevices();
@@ -28,12 +28,14 @@ int main()
 	glfwGetFramebufferSize(window, &width, &height);
 	renderer.constructSwapchain({ (uint32_t)width, (uint32_t)height });
 
+	renderer.addShaderEntries({ "pyra_shaders.spirv" }, { "vertexMain" }, { "fragmentMain" }); 
+
+	renderer.addGraphicsPipeline("main pipeline", "vertexMain", "fragmentMain");
+
 	while (!glfwWindowShouldClose(window))
 	{
 		glfwPollEvents();
 	}
-
-	renderer.getRenderDevice().getLogicalDeviceHandle().waitIdle();
 
 	glfwDestroyWindow(window); 
 	glfwTerminate();
