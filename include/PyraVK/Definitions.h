@@ -6,15 +6,19 @@
 
 #include <vector>
 #include <string>
+#include <unordered_map>
 #include <memory>
 #include <exception>
 #include <optional>
 #include <ranges>
 #include <algorithm>
 
-#define pyra_assert(assertion,fail_messsage) \
-if(!(assertion)) {spdlog::error("Exception at {:} ==> {:}",__FUNCTION__,fail_messsage); \
-throw std::exception(fail_messsage);}
+#define pyra_assert(assertion,fail_message,...) \
+if(!(assertion)) {spdlog::error(fail_message,__VA_ARGS__); \
+throw std::runtime_error(fail_message);}
+
+#define pyra_warn(condition,...) \
+if(condition) spdlog::warn(__VA_ARGS__);
 
 namespace pyra
 {

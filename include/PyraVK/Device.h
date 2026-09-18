@@ -25,14 +25,15 @@ namespace pyra
 
 		void constructDeviceHandles();
 
-		const vk::PhysicalDeviceProperties getDeviceProperties() const;
-		const uint32_t getGraphicsQueueFamilyIndex() const;
-		const std::vector<const char*>& getDeviceExtentions() const;
+		vk::PhysicalDeviceProperties getDeviceProperties() const;
+		uint32_t getGraphicsQueueFamilyIndex() const;
+		std::vector<const char*> getDeviceExtentions() const;
 
 		const vk::raii::PhysicalDevice& getPhysicalDeviceHandle() const; 
 		const vk::raii::Device& getLogicalDeviceHandle() const;
 		const vk::raii::Queue& getGraphicsQueueHandle() const;
 		const vk::raii::CommandPool& getCommandPoolHandle() const;
+		const vk::raii::PipelineCache& getGraphicsPipelineCacheHandle() const;
 	};
 
 }

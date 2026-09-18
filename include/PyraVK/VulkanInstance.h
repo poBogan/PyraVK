@@ -15,8 +15,8 @@ namespace pyra
 		std::vector<const char*> layers{};
 	public:
 		VulkanInstance(const vk::raii::Context& context,std::vector<const char*> extentions, std::vector<const char*> layers);
-		const std::vector<const char*>& getExtensions() const; 
-		const std::vector<const char*>& getLayers() const; 
+		std::vector<const char*> getExtentionNames() const; 
+		std::vector<const char*> getLayerNames() const; 
 		uint32_t getVulkanVersion() const; 
 		const vk::raii::Instance& getVulkanInstanceHandle() const;
 	};

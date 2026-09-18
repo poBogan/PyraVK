@@ -41,12 +41,12 @@ namespace pyra
 		}
 	}
 
-	const std::vector<const char*>& VulkanInstance::getExtensions() const
+	std::vector<const char*> VulkanInstance::getExtentionNames() const
 	{
 		return this->extentions;
 	}
 
-	const std::vector<const char*>& VulkanInstance::getLayers() const
+	std::vector<const char*> VulkanInstance::getLayerNames() const
 	{
 		return this->layers;
 	}

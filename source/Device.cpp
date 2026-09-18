@@ -127,17 +127,17 @@ namespace pyra
 	}
 
 
-	const vk::PhysicalDeviceProperties Device::getDeviceProperties() const
+	vk::PhysicalDeviceProperties Device::getDeviceProperties() const
 	{
 		return deviceProperties;
 	}
 
-	const uint32_t Device::getGraphicsQueueFamilyIndex() const
+	uint32_t Device::getGraphicsQueueFamilyIndex() const
 	{
 		return graphicsQueueFamilyIndex;
 	}
 
-	const std::vector<const char*>& Device::getDeviceExtentions() const
+	std::vector<const char*> Device::getDeviceExtentions() const
 	{
 		return device_extentions;
 	}
@@ -160,6 +160,11 @@ namespace pyra
 	const vk::raii::CommandPool& Device::getCommandPoolHandle() const
 	{
 		return commandPoolHandle;
+	}
+
+	const vk::raii::PipelineCache& Device::getGraphicsPipelineCacheHandle() const
+	{
+		return graphicsPipelineCache;
 	}
 
 }
