@@ -13,13 +13,15 @@ namespace pyra
 			vk::PhysicalDeviceProperties device_properties = physical_device.getProperties();
 
 			bool api_version_supported = device_properties.apiVersion >= instance.getConfig().vulkan_api_version;
+			pyra_warn(!api_version_supported, "{:} does not support required Vulkan version!", device_properties.deviceName.data());
 
 			std::vector<vk::ExtensionProperties> supported_device_extentions = physical_device.enumerateDeviceExtensionProperties();
 
-			bool device_extensions_supported = std::ranges::all_of(device_extentions, [&supported_device_extentions](const char* required) -> bool {
-				bool extention_supported = std::ranges::any_of(supported_device_extentions, [&required](vk::ExtensionProperties& supported) -> bool {
+			bool device_extensions_supported = std::ranges::all_of(device_extentions, [&supported_device_extentions,&device_properties](const char* required) -> bool {
+				bool extention_supported = std::ranges::any_of(supported_device_extentions, [&required,&device_properties](vk::ExtensionProperties& supported) -> bool {
 					return strcmp(required, supported.extensionName.data()) == 0;
 					});
+				pyra_warn(!extention_supported, "{:} does not support extension \"{:}\"", device_properties.deviceName.data(),required);
 				return extention_supported;
 				});
 
@@ -29,6 +31,8 @@ namespace pyra
 				features.get<vk::PhysicalDeviceVulkan13Features>().dynamicRendering &&
 				features.get<vk::PhysicalDeviceExtendedDynamicStateFeaturesEXT>().extendedDynamicState &&
 				features.get<vk::PhysicalDeviceVulkan13Features>().synchronization2;
+
+			pyra_warn(!device_features_supported, "{:} does not support required device features!",device_properties.deviceName.data());
 
 			bool suitable_queue_found = false;
 			auto queue_families = physical_device.getQueueFamilyProperties();
@@ -43,13 +47,12 @@ namespace pyra
 				}
 			}
 
-			auto suitable_surface_format_exists = physical_device.getSurfaceFormatsKHR(*surface.getSurfaceHandle()).size() > 0;
+			pyra_warn(!suitable_queue_found, "{:} does not have a suitable queue!", device_properties.deviceName.data());
 
 			if (api_version_supported && 
 				device_extensions_supported && 
 				device_features_supported && 
-				suitable_queue_found && 
-				suitable_surface_format_exists
+				suitable_queue_found
 				)
 			{
 				suitableDeviceConfigs.push_back({ physical_device,queue_family_index,device_extentions });
