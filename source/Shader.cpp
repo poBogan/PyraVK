@@ -21,9 +21,9 @@ namespace pyra
 		return buffer;
 	}
 
-	pyra::Shader::Shader(Device& device,std::string file,std::vector<std::string> vertexShaderEntries, std::vector<std::string> fragmentShaderEntries)
+	pyra::Shader::Shader(const Device& device, const Shader::Config config) : config(config)
 	{
-		std::vector<char> moduleCode = readShader(file);
+		std::vector<char> moduleCode = readShader(config.file);
 		moduleCode.shrink_to_fit();
 
 		VkShaderModuleCreateInfo shaderModuleInfo{
@@ -33,40 +33,17 @@ namespace pyra
 			.codeSize = (uint32_t)moduleCode.size(),
 			.pCode = reinterpret_cast<uint32_t*>(moduleCode.data())
 		};
-
-		shaderModule = vk::raii::ShaderModule(device.getLogicalDeviceHandle(), shaderModuleInfo);
-
-		this->vertexShaderEntries = vertexShaderEntries;
-		this->fragmentShaderEntries = fragmentShaderEntries;
+		shaderModuleHandle = vk::raii::ShaderModule(device.getLogicalDeviceHandle(), shaderModuleInfo);
 	}
 
-	const vk::raii::ShaderModule& pyra::Shader::getShaderModuleHandle() const
+	const Shader::Config& Shader::getConfig() const
 	{
-		return shaderModule;
+		return config;
 	}
 
-	std::string Shader::getFileName() const
+	const vk::raii::ShaderModule& Shader::getShaderModuleHandle() const
 	{
-		return file;
+		return shaderModuleHandle;
 	}
 
-	std::vector<std::string> Shader::getVertexShaderEntries() const
-	{
-		return vertexShaderEntries;
-	}
-
-	std::vector<std::string> Shader::getFragmentShaderEntries() const
-	{
-		return fragmentShaderEntries;
-	}
-
-	bool pyra::Shader::hasVertexShaderEntry(std::string entry) const
-	{
-		return std::ranges::any_of(vertexShaderEntries, [&entry](const std::string& iteratedEntry) -> bool {return iteratedEntry == entry;});
-	}
-	bool pyra::Shader::hasFragmentShaderEntry(std::string entry) const
-	{
-		return std::ranges::any_of(fragmentShaderEntries, [&entry](const std::string& iteratedEntry) -> bool {return iteratedEntry == entry;});
-
-	}
 }

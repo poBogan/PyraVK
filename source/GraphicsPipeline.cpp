@@ -1,31 +1,13 @@
 #include <PyraVK/GraphicsPipeline.h>
-#include <fstream>
 
 namespace pyra
 {
 
-	GraphicsPipeline::GraphicsPipeline(
-		Device& device,
-		Shader& vertexShaderModule, std::string vertexShaderEntry,
-		Shader& fragmentShaderModule, std::string fragmentShaderEntry,
-		vk::Format targetFormat,
-		vk::PrimitiveTopology primitiveTopology,
-		vk::CullModeFlagBits faceCullingMode,
-		vk::FrontFace frontFace,
-		vk::SampleCountFlagBits sampleCount
-	)
+	GraphicsPipeline::GraphicsPipeline(Device& device, Shader& vertexShaderModule, Shader& fragmentShaderModule, const GraphicsPipeline::Config config) : config(config)
 	{
-		this->targetFormat = targetFormat;
-		this->primitiveTopology = primitiveTopology; 
-		this->faceCullingMode = faceCullingMode; 
-		this->frontFace = frontFace; 
-		this->sampleCount = sampleCount;
-		this->vertexShaderEntry = vertexShaderEntry; 
-		this->fragmentshaderEntry = fragmentShaderEntry;
-
 		std::vector<VkPipelineShaderStageCreateInfo> shaderStages = {
-			{.sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO, .stage = VK_SHADER_STAGE_VERTEX_BIT, .module = (VkShaderModule)*vertexShaderModule.getShaderModuleHandle(), .pName = vertexShaderEntry.c_str()},
-			{.sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO, .stage = VK_SHADER_STAGE_FRAGMENT_BIT, .module = (VkShaderModule)*fragmentShaderModule.getShaderModuleHandle(), .pName = fragmentShaderEntry.c_str()},
+			{.sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO, .stage = VK_SHADER_STAGE_VERTEX_BIT, .module = (VkShaderModule)*vertexShaderModule.getShaderModuleHandle(), .pName = config.vertexShaderEntry.c_str()},
+			{.sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO, .stage = VK_SHADER_STAGE_FRAGMENT_BIT, .module = (VkShaderModule)*fragmentShaderModule.getShaderModuleHandle(), .pName = config.fragmentShaderEntry.c_str()},
 		}; 
 
 		VkPipelineVertexInputStateCreateInfo vertexInputState{
@@ -42,7 +24,7 @@ namespace pyra
 			.sType = VK_STRUCTURE_TYPE_PIPELINE_INPUT_ASSEMBLY_STATE_CREATE_INFO,
 			.pNext = NULL,
 			.flags = NULL,
-			.topology = (VkPrimitiveTopology)primitiveTopology,
+			.topology = (VkPrimitiveTopology)config.primitiveTopology,
 			.primitiveRestartEnable = VK_FALSE
 		};
 
@@ -71,8 +53,8 @@ namespace pyra
 			.depthClampEnable = VK_FALSE,
 			.rasterizerDiscardEnable = VK_FALSE,
 			.polygonMode = VK_POLYGON_MODE_FILL,
-			.cullMode = (VkCullModeFlags)faceCullingMode,
-			.frontFace = (VkFrontFace)frontFace,
+			.cullMode = (VkCullModeFlags)config.faceCullingMode,
+			.frontFace = (VkFrontFace)config.frontFace,
 			.depthBiasEnable = VK_FALSE,
 			.lineWidth = 1
 		}; 
@@ -81,7 +63,7 @@ namespace pyra
 			.sType = VK_STRUCTURE_TYPE_PIPELINE_MULTISAMPLE_STATE_CREATE_INFO,
 			.pNext = NULL,
 			.flags = NULL,
-			.rasterizationSamples = (VkSampleCountFlagBits)sampleCount,
+			.rasterizationSamples = (VkSampleCountFlagBits)config.sampleCount,
 			.sampleShadingEnable = VK_FALSE,
 			.alphaToCoverageEnable = VK_FALSE,
 			.alphaToOneEnable = VK_FALSE
@@ -120,7 +102,7 @@ namespace pyra
 
 		pipelineLayout = vk::raii::PipelineLayout(device.getLogicalDeviceHandle(), vk::PipelineLayoutCreateInfo(pipelineLayoutInfo));
 
-		const VkFormat _targetFormat = (VkFormat)targetFormat;
+		const VkFormat _targetFormat = (VkFormat)config.targetFormat;
 
 		VkPipelineRenderingCreateInfo pipelineRenderingInfo{
 			.sType = VK_STRUCTURE_TYPE_PIPELINE_RENDERING_CREATE_INFO,
@@ -151,39 +133,9 @@ namespace pyra
 		handle = vk::raii::Pipeline(device.getLogicalDeviceHandle(),device.getGraphicsPipelineCacheHandle(), vk::GraphicsPipelineCreateInfo(graphicsPipelineCreateInfo));
 	}
 
-	std::string GraphicsPipeline::getVertexShaderEntry() const
+	const GraphicsPipeline::Config& GraphicsPipeline::getConfig() const
 	{
-		return vertexShaderEntry;
-	}
-
-	std::string GraphicsPipeline::getFragmentShaderEntry() const
-	{
-		return fragmentshaderEntry;
-	}
-
-	vk::Format GraphicsPipeline::getTargetFormat() const
-	{
-		return targetFormat;
-	}
-
-	vk::PrimitiveTopology GraphicsPipeline::getPrimitiveTopology() const
-	{
-		return primitiveTopology;
-	}
-
-	vk::CullModeFlagBits GraphicsPipeline::getFaceCullingMode() const
-	{
-		return faceCullingMode;
-	}
-
-	vk::FrontFace GraphicsPipeline::getFrontFace() const
-	{
-		return frontFace;
-	}
-
-	vk::SampleCountFlagBits GraphicsPipeline::getSampleCount() const
-	{
-		return sampleCount;
+		return config;
 	}
 
 	const vk::raii::Pipeline& GraphicsPipeline::getGraphicsPipelineHandle() const

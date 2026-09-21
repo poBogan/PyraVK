@@ -4,54 +4,37 @@
 namespace pyra
 {
 
-	Swapchain::Swapchain(
-		Device& renderDevice, 
-		Surface& surface, 
-		vk::Extent2D windowSizeInPixels, 
-		uint32_t swapchainImageCount, 
-		std::vector<vk::SurfaceFormatKHR> imageFormatPreferences,
-		std::vector<vk::PresentModeKHR> presentModePreferences
-	)
+	Swapchain::Swapchain(const Device& device, const Surface& surface, const Swapchain::Config config) : config(config)
 	{
-		auto surface_capabilities = renderDevice.getPhysicalDeviceHandle().getSurfaceCapabilitiesKHR(*surface.getSurfaceHandle());
+		auto surface_capabilities = device.getConfig().physicalDevice.getSurfaceCapabilitiesKHR(*surface.getSurfaceHandle());
 
 		if (surface_capabilities.currentExtent.width != std::numeric_limits<uint32_t>::max())
 		{
-			swapchainImageExtent = surface_capabilities.currentExtent;
+			this->config.imageExtent = surface_capabilities.currentExtent;
 		}
 
 		else
 		{
-			swapchainImageExtent.width = std::clamp<uint32_t>(windowSizeInPixels.width, surface_capabilities.minImageExtent.width, surface_capabilities.maxImageExtent.width);
-			swapchainImageExtent.height = std::clamp<uint32_t>(windowSizeInPixels.height, surface_capabilities.minImageExtent.height, surface_capabilities.maxImageExtent.height);
+			this->config.imageExtent.width = std::clamp<uint32_t>(this->config.imageExtent.width, surface_capabilities.minImageExtent.width, surface_capabilities.maxImageExtent.width);
+			this->config.imageExtent.height = std::clamp<uint32_t>(this->config.imageExtent.height, surface_capabilities.minImageExtent.height, surface_capabilities.maxImageExtent.height);
 		}
 
 		auto maxImageCount = surface_capabilities.maxImageCount != 0 ? surface_capabilities.maxImageCount : std::numeric_limits<uint32_t>::max();
-		auto targetImageCount = std::clamp<uint32_t>(swapchainImageCount, surface_capabilities.minImageCount + 1, maxImageCount);
+		this->config.imageCount = std::clamp<uint32_t>(this->config.imageCount, surface_capabilities.minImageCount + 1, maxImageCount);
 
-
-		auto supported_image_formats = renderDevice.getPhysicalDeviceHandle().getSurfaceFormatsKHR(*surface.getSurfaceHandle());
-		pyra_assert(!supported_image_formats.empty(), "No image format compatible with both render device and surface");
-		swapchainImageFormat = supported_image_formats[0];
-		for (auto& prefered : imageFormatPreferences)
+		std::vector<vk::SurfaceFormatKHR> supported_formats = device.getConfig().physicalDevice.getSurfaceFormatsKHR(*surface.getSurfaceHandle());
+		pyra_assert(!supported_formats.empty(), "Cannot create swapchain.No supported image formats");
+		if (std::ranges::find(supported_formats, vk::SurfaceFormatKHR(config.imageFormat, config.colorSpace)) == supported_formats.end())
 		{
-			if (std::ranges::any_of(supported_image_formats, [&prefered](vk::SurfaceFormatKHR& supported) ->bool {return supported == prefered; }))
-			{
-				swapchainImageFormat = prefered;
-				break;
-			}
+			this->config.imageFormat = supported_formats.front().format; 
+			this->config.colorSpace = supported_formats.front().colorSpace; 
 		}
 
-		auto supported_present_modes = renderDevice.getPhysicalDeviceHandle().getSurfacePresentModesKHR(*surface.getSurfaceHandle());
-		pyra_assert(!supported_present_modes.empty(), "Cannot find a present mode both compatible with the render device and surface");
-		auto swapchainPresentMode = vk::PresentModeKHR::eFifo;
-		for (auto& prefered : presentModePreferences)
+		std::vector<vk::PresentModeKHR> supported_present_modes = device.getConfig().physicalDevice.getSurfacePresentModesKHR(*surface.getSurfaceHandle());
+		pyra_assert(!supported_present_modes.empty(), "Cannot create swapchain.No supported present modes");
+		if (std::ranges::find(supported_present_modes, config.presentMode) == supported_present_modes.end())
 		{
-			if (std::ranges::any_of(supported_present_modes, [&prefered](vk::PresentModeKHR& supported) -> bool {return supported == prefered;}))
-			{
-				swapchainPresentMode = prefered;
-				break;
-			}
+			this->config.presentMode = vk::PresentModeKHR::eFifo;
 		}
 
 		VkSwapchainCreateInfoKHR swapchainInfo{
@@ -59,25 +42,26 @@ namespace pyra
 			.pNext = NULL,
 			.flags = NULL,
 			.surface = *surface.getSurfaceHandle(),
-			.minImageCount = targetImageCount,
-			.imageFormat = (VkFormat)swapchainImageFormat.format,
-			.imageColorSpace = (VkColorSpaceKHR)swapchainImageFormat.colorSpace,
-			.imageExtent = (VkExtent2D)swapchainImageExtent,
+			.minImageCount = this->config.imageCount,
+			.imageFormat = (VkFormat)this->config.imageFormat,
+			.imageColorSpace = (VkColorSpaceKHR)this->config.colorSpace,
+			.imageExtent = (VkExtent2D)this->config.imageExtent,
 			.imageArrayLayers = 1,
 			.imageUsage = VkImageUsageFlagBits::VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT,
 			.imageSharingMode = VkSharingMode::VK_SHARING_MODE_EXCLUSIVE,
 			.preTransform = (VkSurfaceTransformFlagBitsKHR)surface_capabilities.currentTransform,
 			.compositeAlpha = VkCompositeAlphaFlagBitsKHR::VK_COMPOSITE_ALPHA_OPAQUE_BIT_KHR,
-			.presentMode = (VkPresentModeKHR)swapchainPresentMode,
+			.presentMode = (VkPresentModeKHR)this->config.presentMode,
 			.clipped = VK_TRUE,
 			.oldSwapchain = VK_NULL_HANDLE
 		};
 
-		handle = vk::raii::SwapchainKHR(renderDevice.getLogicalDeviceHandle(), vk::SwapchainCreateInfoKHR(swapchainInfo));
+		handle = vk::raii::SwapchainKHR(device.getLogicalDeviceHandle(), vk::SwapchainCreateInfoKHR(swapchainInfo));
 
-		swapchainImages = handle.getImages();
+		images = handle.getImages();
+		this->config.imageCount = (uint32_t)images.size();
 
-		for (auto& image : swapchainImages)
+		for (auto& image : images)
 		{
 			
 			VkImageViewCreateInfo imageViewInfo{
@@ -86,7 +70,7 @@ namespace pyra
 				.flags = NULL,
 				.image = (VkImage)image,
 				.viewType = VkImageViewType::VK_IMAGE_VIEW_TYPE_2D,
-				.format = (VkFormat)swapchainImageFormat.format,
+				.format = (VkFormat)this->config.imageFormat,
 				.components = { VkComponentSwizzle::VK_COMPONENT_SWIZZLE_IDENTITY,VkComponentSwizzle::VK_COMPONENT_SWIZZLE_IDENTITY ,VkComponentSwizzle::VK_COMPONENT_SWIZZLE_IDENTITY,VkComponentSwizzle::VK_COMPONENT_SWIZZLE_IDENTITY },
 				.subresourceRange = {
 					.aspectMask = VkImageAspectFlagBits::VK_IMAGE_ASPECT_COLOR_BIT,
@@ -96,16 +80,21 @@ namespace pyra
 					.layerCount = 1
 				}
 			};
-			swapchainImageViews.push_back(vk::raii::ImageView(renderDevice.getLogicalDeviceHandle(), vk::ImageViewCreateInfo(imageViewInfo)));
+			imageViews.push_back(vk::raii::ImageView(device.getLogicalDeviceHandle(), vk::ImageViewCreateInfo(imageViewInfo)));
 
 			VkSemaphoreCreateInfo semaphoreInfo{
 				.sType = VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO,
 				.pNext = NULL,
 				.flags = {}
 			};
-			imagePresentableSemaphores.push_back(vk::raii::Semaphore(renderDevice.getLogicalDeviceHandle(), vk::SemaphoreCreateInfo(semaphoreInfo)));
+			imagePresentableSemaphores.push_back(vk::raii::Semaphore(device.getLogicalDeviceHandle(), vk::SemaphoreCreateInfo(semaphoreInfo)));
 		}
 
+	}
+
+	const Swapchain::Config& Swapchain::getConfig() const
+	{
+		return config;
 	}
 
 	const vk::raii::SwapchainKHR& Swapchain::getSwapchainHandle() const
@@ -113,35 +102,19 @@ namespace pyra
 		return handle;
 	}
 
-	const std::vector<vk::Image>& Swapchain::getSwapchainImages() const
+	const std::vector<vk::Image>& Swapchain::getImages() const
 	{
-		return swapchainImages;
+		return images;
 	}
 
-	const std::vector<vk::raii::ImageView>& Swapchain::getSwapchainImageViews() const
+	const std::vector<vk::raii::ImageView>& Swapchain::getImageViews() const
 	{
-		return swapchainImageViews;
+		return imageViews;
 	}
 
 	const std::vector<vk::raii::Semaphore>& Swapchain::getImagePresentableSemaphores() const
 	{
 		return imagePresentableSemaphores;
 	}
-
-	vk::Extent2D Swapchain::getSwapchainImageExtent() const
-	{
-		return swapchainImageExtent;
-	}
-
-	uint32_t Swapchain::getSwapchainImageCount() const
-	{
-		return (uint32_t)swapchainImages.size();
-	}
-
-	vk::SurfaceFormatKHR Swapchain::getSwapchainImageFormat() const
-	{
-		return swapchainImageFormat;
-	}
-
 
 }

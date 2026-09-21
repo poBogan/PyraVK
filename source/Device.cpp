@@ -3,16 +3,16 @@
 namespace pyra
 {
 	
-	std::vector<Device> Device::getSuitableDevices(VulkanInstance& instance, Surface& surface, std::vector<const char*> device_extentions)
+	std::vector<Device::Config> Device::getSuitableDevices(const VulkanInstance& instance,const Surface& surface,const std::vector<const char*> device_extentions)
 	{
-		std::vector<Device> suitableRenderDevices{};
+		std::vector<Device::Config> suitableDeviceConfigs{};
 		std::vector<vk::raii::PhysicalDevice> physicalDevices = instance.getVulkanInstanceHandle().enumeratePhysicalDevices();
 
 		for (vk::raii::PhysicalDevice& physical_device : physicalDevices)
 		{
 			vk::PhysicalDeviceProperties device_properties = physical_device.getProperties();
 
-			bool api_version_supported = device_properties.apiVersion >= instance.getVulkanVersion();
+			bool api_version_supported = device_properties.apiVersion >= instance.getConfig().vulkan_api_version;
 
 			std::vector<vk::ExtensionProperties> supported_device_extentions = physical_device.enumerateDeviceExtensionProperties();
 
@@ -52,41 +52,27 @@ namespace pyra
 				suitable_surface_format_exists
 				)
 			{
-				suitableRenderDevices.push_back(Device(physical_device, queue_family_index, device_extentions));
+				suitableDeviceConfigs.push_back({ physical_device,queue_family_index,device_extentions });
 			}
 
 		}
 
-		return suitableRenderDevices;
+		return suitableDeviceConfigs;
 	}
 
-	Device::Device(vk::raii::PhysicalDevice physical_device, uint32_t graphics_queue_family_index, std::vector<const char*>device_extentions)
+	Device::Device(const Device::Config config) : config(config)
 	{
-		physicalDeviceHandle = physical_device;
-		this->device_extentions = device_extentions;
-		this->graphicsQueueFamilyIndex = graphics_queue_family_index;
-		deviceProperties = physicalDeviceHandle.getProperties();
-	}
-
-	void Device::constructDeviceHandles()
-	{
-		if (logicalDeviceHandle != nullptr)
-		{
-			spdlog::warn("{:} - Device handles already constructed. Skipping...", __FUNCTION__);
-			return;
-		}
-
 		float queuePriority = 0.5f;
 		VkDeviceQueueCreateInfo queueInfo{
 			.sType = VK_STRUCTURE_TYPE_DEVICE_QUEUE_CREATE_INFO,
 			.pNext = NULL,
 			.flags = NULL,
-			.queueFamilyIndex = this->graphicsQueueFamilyIndex,
+			.queueFamilyIndex = config.graphicsQueueFamilyIndex,
 			.queueCount = 1,
 			.pQueuePriorities = &queuePriority
 		};
 
-		VkPhysicalDeviceFeatures2 feats; 
+		VkPhysicalDeviceFeatures2 feats;
 		auto features = vk::StructureChain<vk::PhysicalDeviceFeatures2, vk::PhysicalDeviceVulkan11Features, vk::PhysicalDeviceVulkan13Features, vk::PhysicalDeviceExtendedDynamicStateFeaturesEXT>();
 		features.get<vk::PhysicalDeviceVulkan11Features>().shaderDrawParameters = true;
 		features.get<vk::PhysicalDeviceVulkan13Features>().dynamicRendering = true;
@@ -99,18 +85,18 @@ namespace pyra
 			.flags = NULL,
 			.queueCreateInfoCount = 1,
 			.pQueueCreateInfos = &queueInfo,
-			.enabledExtensionCount = (uint32_t)this->device_extentions.size(),
-			.ppEnabledExtensionNames = this->device_extentions.data(),
+			.enabledExtensionCount = (uint32_t)config.device_extentions.size(),
+			.ppEnabledExtensionNames = config.device_extentions.data(),
 		};
 
-		logicalDeviceHandle = vk::raii::Device(physicalDeviceHandle, vk::DeviceCreateInfo(deviceInfo));
-		graphicsQueueHandle = vk::raii::Queue(logicalDeviceHandle, this->graphicsQueueFamilyIndex, 0);
+		logicalDeviceHandle = vk::raii::Device(config.physicalDevice, vk::DeviceCreateInfo(deviceInfo));
+		graphicsQueueHandle = vk::raii::Queue(logicalDeviceHandle, config.graphicsQueueFamilyIndex, 0);
 
 		VkCommandPoolCreateInfo commandPoolInfo{
 			.sType = VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO,
 			.pNext = NULL,
-			.flags = {},
-			.queueFamilyIndex = graphicsQueueFamilyIndex
+			.flags = VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT,
+			.queueFamilyIndex = config.graphicsQueueFamilyIndex
 		};
 
 		commandPoolHandle = vk::raii::CommandPool(logicalDeviceHandle, vk::CommandPoolCreateInfo(commandPoolInfo));
@@ -126,25 +112,9 @@ namespace pyra
 		graphicsPipelineCache = vk::raii::PipelineCache(logicalDeviceHandle, graphicsPipelineCacheInfo);
 	}
 
-
-	vk::PhysicalDeviceProperties Device::getDeviceProperties() const
+	const Device::Config& Device::getConfig() const
 	{
-		return deviceProperties;
-	}
-
-	uint32_t Device::getGraphicsQueueFamilyIndex() const
-	{
-		return graphicsQueueFamilyIndex;
-	}
-
-	std::vector<const char*> Device::getDeviceExtentions() const
-	{
-		return device_extentions;
-	}
-
-	const vk::raii::PhysicalDevice& Device::getPhysicalDeviceHandle() const
-	{
-		return physicalDeviceHandle;
+		return config;
 	}
 
 	const vk::raii::Device& Device::getLogicalDeviceHandle() const

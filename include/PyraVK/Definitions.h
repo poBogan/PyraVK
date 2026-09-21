@@ -14,7 +14,7 @@
 #include <algorithm>
 
 #define pyra_assert(assertion,fail_message,...) \
-if(!(assertion)) {spdlog::error(fail_message,__VA_ARGS__); \
+if(!(assertion)) {spdlog::critical(fail_message,__VA_ARGS__); \
 throw std::runtime_error(fail_message);}
 
 #define pyra_warn(condition,...) \
@@ -22,6 +22,22 @@ if(condition) spdlog::warn(__VA_ARGS__);
 
 namespace pyra
 {
+	template<class T> 
+	std::size_t combineHash(std::size_t prev,const T curr)
+	{
+		std::hash<T> tHasher;
+		std::size_t res = prev ^ (tHasher(curr) + 0x9e3779b9 + (prev << 6) + (prev >> 2));
+		return res;
+	}
+
+	template<class...Types> 
+	std::size_t chainHash(const Types&...args)
+	{
+		std::size_t seed = 0;
+		((seed = combineHash(seed, args)), ...); 
+		return seed;
+	}
+
 	class Base
 	{
 	protected : 

@@ -12,30 +12,62 @@ int main()
 	const char** extNames = glfwGetRequiredInstanceExtensions(&extCount);
 	std::vector<const char*> extension_names(extNames, extNames + extCount);
 
-	pyra::Renderer::createRenderer();
-	auto& renderer = pyra::Renderer::getRenderer(); 
+	pyra::Renderer::createRenderer(); 
+	auto& renderer = pyra::Renderer::getRenderer();
 
-	renderer.constructVulkanInstance(extension_names,{});
+	pyra::VulkanInstance::Config vulkanInstanceInfo{
+		.extentions = extension_names,
+		.layers = {"VK_LAYER_KHRONOS_validation"}
+	};
+	renderer.constructVulkanInstance(vulkanInstanceInfo);
 
-	VkSurfaceKHR s; 
-	glfwCreateWindowSurface(*renderer.getVulkanInstance().value().getVulkanInstanceHandle(), window, nullptr, &s);
-	renderer.constructWindowSurface(s);
+	pyra::Surface::Config windowSurfaceInfo;
+	glfwCreateWindowSurface(*renderer.getVulkanInstance().value().getVulkanInstanceHandle(), window, nullptr, &windowSurfaceInfo.surface);
+	renderer.constructWindowSurface(windowSurfaceInfo);
 
-	auto devices = renderer.getSuitableRenderDevices();
-	renderer.selectRenderDevice(std::move(devices[0]));
+	std::vector<pyra::Device::Config> deviceConfigs = renderer.getSuitableRenderDevices();
+	renderer.selectRenderDevice(deviceConfigs.front());
 
-	int width, height; 
+	int width, height;
 	glfwGetFramebufferSize(window, &width, &height);
-	renderer.constructSwapchain({ (uint32_t)width, (uint32_t)height });
+	pyra::Swapchain::Config swapchainInfo{
+		.imageExtent = {(uint32_t)width, (uint32_t)height},
+		.imageCount = 3,
+		.imageFormat = vk::Format::eB8G8R8A8Unorm,
+		.colorSpace = vk::ColorSpaceKHR::eSrgbNonlinear,
+		.presentMode = vk::PresentModeKHR::eMailbox
+	};
+	renderer.constructSwapchain(swapchainInfo);
 
-	renderer.addShaderEntries({ "pyra_shaders.spirv" }, { "vertexMain" }, { "fragmentMain" }); 
+	pyra::Shader::Config shaderInfo{
+		.file = "pyra_shader.spirv",
+		.vertexShaderEntries = {"VertexShaderMain"},
+		.fragmentShaderEntries = {"FragmentShaderMain"},
+	};
+	renderer.constructShaderEntries(shaderInfo);
 
-	renderer.addGraphicsPipeline("main pipeline", "vertexMain", "fragmentMain");
+	pyra::GraphicsPipeline::Config pipelineInfo{
+		.vertexShaderEntry = "VertexShaderMain",
+		.fragmentShaderEntry = "FragmentShaderMain",
+		.targetFormat = vk::Format::eB8G8R8A8Unorm,
+		.primitiveTopology = vk::PrimitiveTopology::eTriangleList,
+		.polygonMode = vk::PolygonMode::eFill,
+		.faceCullingMode = vk::CullModeFlagBits::eBack,
+		.frontFace = vk::FrontFace::eClockwise,
+		.sampleCount = vk::SampleCountFlagBits::e1
+	};
+	renderer.constructGraphicsPipeline(pipelineInfo);
+	renderer.useGraphicsPipeline(pipelineInfo);
+
+	renderer.constructFramesInFlight(2);
 
 	while (!glfwWindowShouldClose(window))
 	{
 		glfwPollEvents();
+		renderer.drawFrame();
 	}
+
+	renderer.getRenderDevice()->getLogicalDeviceHandle().waitIdle();
 
 	glfwDestroyWindow(window); 
 	glfwTerminate();
