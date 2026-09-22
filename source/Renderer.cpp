@@ -39,7 +39,7 @@ namespace pyra
 	{
 		pyra_assert(vulkanInstance.has_value(), "Cannot fetch devices. No vulkan instance found!"); 
 		pyra_assert(windowSurface.has_value(), "Cannot fetch devices. No surface found");
-		return Device::getSuitableDevices(vulkanInstance.value(), windowSurface.value(), { vk::KHRSwapchainExtensionName, vk::KHRSynchronization2ExtensionName});
+		return Device::getSuitableDevices(vulkanInstance.value(), windowSurface.value(), { vk::KHRSwapchainExtensionName} );
 	}
 
 	void Renderer::selectRenderDevice(Device::Config config)
@@ -149,7 +149,7 @@ namespace pyra
 		}
 	}
 
-	void Renderer::drawFrame(vk::ClearColorValue clearColor, vk::Viewport viewport, vk::Rect2D scissor)
+	void Renderer::drawFrame(glm::vec4 clearColor, vk::Viewport viewport, vk::Rect2D scissor)
 	{
 		pyra_assert(vulkanInstance.has_value(), "Cannot draw frame. No vulkan instance exists!"); 
 		pyra_assert(windowSurface.has_value(), "Cannot draw frame. No window surface exists!");
@@ -202,7 +202,8 @@ namespace pyra
 
 		commandBuffers[currentFrame].pipelineBarrier2(vk::DependencyInfo(optimal_color_attachment_dependency_info));
 
-		vk::ClearValue clearVal(clearColor);
+		vk::ClearColorValue clearColorVal(clearColor.r, clearColor.g, clearColor.b, clearColor.a);
+		vk::ClearValue clearVal(clearColorVal);
 
 		VkRenderingAttachmentInfo attachmentInfo{
 			.sType = VK_STRUCTURE_TYPE_RENDERING_ATTACHMENT_INFO,

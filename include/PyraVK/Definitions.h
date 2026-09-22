@@ -1,5 +1,6 @@
 #pragma once 
 #include <spdlog/spdlog.h>
+#include <glm/glm.hpp>
 #include <vulkan/vulkan_core.h>
 #include <vulkan/vulkan.hpp>
 #include <vulkan/vulkan_raii.hpp>
@@ -18,7 +19,10 @@ if(!(assertion)) {spdlog::critical(fail_message,__VA_ARGS__); \
 throw std::runtime_error(fail_message);}
 
 #define pyra_warn(condition,...) \
-if(condition) spdlog::warn(__VA_ARGS__);
+if(condition) spdlog::warn(__VA_ARGS__)
+
+#define pyra_info(condition,...)\
+if(condition) spdlog::info(__VA_ARGS__)
 
 namespace pyra
 {

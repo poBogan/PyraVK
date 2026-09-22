@@ -44,7 +44,7 @@ namespace pyra
 		void constructFramesInFlight(uint32_t frames_in_flight_count);
 
 		void useGraphicsPipeline(GraphicsPipeline::Config config);
-		void drawFrame(vk::ClearColorValue clearColor = vk::ClearColorValue(0.f,0.f,0.f,1.f), vk::Viewport viewport = vk::Viewport(0, 0, 0, 0, 0, 0), vk::Rect2D scissor = vk::Rect2D({0,0}, {0,0}));
+		void drawFrame(glm::vec4 clearColor = {0.f, 0.f, 0.f, 1.f}, vk::Viewport viewport = {0,0,0,0,0,0}, vk::Rect2D scissor = {{0,0}, {0,0}});
 
 		void destroyVulkanInstance();
 		void destroyWindowSurface();
