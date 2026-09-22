@@ -3,7 +3,7 @@
 namespace pyra
 {
 
-	GraphicsPipeline::GraphicsPipeline(Device& device, Shader& vertexShaderModule, Shader& fragmentShaderModule, const GraphicsPipeline::Config config) : config(config)
+	GraphicsPipeline::GraphicsPipeline(const Device& device, const Shader& vertexShaderModule, const Shader& fragmentShaderModule, const GraphicsPipeline::Config& config) : config(config)
 	{
 		std::vector<VkPipelineShaderStageCreateInfo> shaderStages = {
 			{.sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO, .stage = VK_SHADER_STAGE_VERTEX_BIT, .module = (VkShaderModule)*vertexShaderModule.getShaderModuleHandle(), .pName = config.vertexShaderEntry.c_str()},
@@ -63,7 +63,7 @@ namespace pyra
 			.sType = VK_STRUCTURE_TYPE_PIPELINE_MULTISAMPLE_STATE_CREATE_INFO,
 			.pNext = NULL,
 			.flags = NULL,
-			.rasterizationSamples = (VkSampleCountFlagBits)config.sampleCount,
+			.rasterizationSamples = VK_SAMPLE_COUNT_1_BIT,
 			.sampleShadingEnable = VK_FALSE,
 			.alphaToCoverageEnable = VK_FALSE,
 			.alphaToOneEnable = VK_FALSE
@@ -102,14 +102,14 @@ namespace pyra
 
 		pipelineLayout = vk::raii::PipelineLayout(device.getLogicalDeviceHandle(), vk::PipelineLayoutCreateInfo(pipelineLayoutInfo));
 
-		const VkFormat _targetFormat = (VkFormat)config.targetFormat;
+		const VkFormat colorAttachmentFormat = (VkFormat)this->config.colorAttachmentFormat;
 
 		VkPipelineRenderingCreateInfo pipelineRenderingInfo{
 			.sType = VK_STRUCTURE_TYPE_PIPELINE_RENDERING_CREATE_INFO,
 			.pNext = NULL,
 			.viewMask = NULL,
 			.colorAttachmentCount = 1,
-			.pColorAttachmentFormats = &_targetFormat,
+			.pColorAttachmentFormats = &colorAttachmentFormat,
 		};
 
 		VkGraphicsPipelineCreateInfo graphicsPipelineCreateInfo{

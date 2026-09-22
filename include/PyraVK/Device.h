@@ -10,15 +10,19 @@ namespace pyra
 	public : 
 		struct Config
 		{
-			vk::raii::PhysicalDevice physicalDevice;
-			uint32_t graphicsQueueFamilyIndex;
-			std::vector<const char*>device_extentions;
+			const vk::raii::PhysicalDevice physicalDevice;
+			const uint32_t graphicsQueueFamilyIndex;
+			const std::vector<const char*>device_extentions;
+			uint32_t framesInFlight = 2;
 		};
 	private : 
 		vk::raii::Device logicalDeviceHandle = nullptr; 
 		vk::raii::Queue graphicsQueueHandle = nullptr;
-		vk::raii::CommandPool commandPoolHandle = nullptr;
 		vk::raii::PipelineCache graphicsPipelineCache = nullptr;
+		vk::raii::CommandPool commandPoolHandle = nullptr;
+		vk::raii::CommandBuffers commandBuffers = nullptr;
+		std::vector<vk::raii::Fence> commandBufferReadyFences{};
+		std::vector<vk::raii::Semaphore> imagePaintableSemaphores{};
 		const Device::Config config;
 	public : 
 		static std::vector<Device::Config> getSuitableDevices(const VulkanInstance& instance,const Surface& surface,const std::vector<const char*> device_extentions);
@@ -29,6 +33,9 @@ namespace pyra
 		const vk::raii::Queue& getGraphicsQueueHandle() const;
 		const vk::raii::CommandPool& getCommandPoolHandle() const;
 		const vk::raii::PipelineCache& getGraphicsPipelineCacheHandle() const;
+		const vk::raii::CommandBuffers& getCommandBuffers() const;
+		const std::vector<vk::raii::Fence>& getCommandBufferReadyFences() const; 
+		const std::vector<vk::raii::Semaphore>& getImagePaintableSemaphores() const;
 	};
 
 }

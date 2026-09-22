@@ -19,16 +19,11 @@ namespace pyra
 		std::optional<Surface> windowSurface; 
 		std::optional<Device> renderDevice; 
 		std::optional<Swapchain> swapchain;
-
 		std::unordered_map<std::string, std::shared_ptr<Shader>> shaderEntries;
 		std::unordered_map<GraphicsPipeline::Config,GraphicsPipeline,GraphicsPipeline::Hasher> graphicsPipelines;
-		std::optional<GraphicsPipeline::Config> currentGraphicsPipelineConfig;
 
 		uint32_t currentFrame = 0;
 		uint32_t frames_in_flight_count = 0;
-		vk::raii::CommandBuffers commandBuffers = nullptr;
-		std::vector<vk::raii::Fence> commandBufferReadyFences{};
-		std::vector<vk::raii::Semaphore> imagePaintableSemaphores{};
 	public:
 		static void createRenderer();
 		static Renderer& getRenderer();
@@ -38,13 +33,10 @@ namespace pyra
 
 		std::vector<Device::Config> getSuitableRenderDevices();
 		void selectRenderDevice(Device::Config config);
-		void constructSwapchain(Swapchain::Config config);
-		void constructShaderEntries(Shader::Config config);
-		void constructGraphicsPipeline(GraphicsPipeline::Config config);
-		void constructFramesInFlight(uint32_t frames_in_flight_count);
+		Swapchain::Config constructSwapchain(Swapchain::Config requestedConfig);
 
-		void useGraphicsPipeline(GraphicsPipeline::Config config);
-		void drawFrame(glm::vec4 clearColor = {0.f, 0.f, 0.f, 1.f}, vk::Viewport viewport = {0,0,0,0,0,0}, vk::Rect2D scissor = {{0,0}, {0,0}});
+		void constructShaders(Shader::Config config);
+		void constructGraphicsPipeline(GraphicsPipeline::Config config);
 
 		void destroyVulkanInstance();
 		void destroyWindowSurface();

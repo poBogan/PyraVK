@@ -102,8 +102,6 @@ namespace pyra
 			.queueFamilyIndex = config.graphicsQueueFamilyIndex
 		};
 
-		commandPoolHandle = vk::raii::CommandPool(logicalDeviceHandle, vk::CommandPoolCreateInfo(commandPoolInfo));
-
 		VkPipelineCacheCreateInfo graphicsPipelineCacheInfo{
 			.sType = VK_STRUCTURE_TYPE_PIPELINE_CACHE_CREATE_INFO,
 			.pNext = NULL,
@@ -113,6 +111,36 @@ namespace pyra
 		};
 
 		graphicsPipelineCache = vk::raii::PipelineCache(logicalDeviceHandle, graphicsPipelineCacheInfo);
+
+		commandPoolHandle = vk::raii::CommandPool(logicalDeviceHandle, vk::CommandPoolCreateInfo(commandPoolInfo));
+
+		VkCommandBufferAllocateInfo cmdBuffAllInfo{
+			.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO,
+			.pNext = NULL,
+			.commandPool = (VkCommandPool)*commandPoolHandle,
+			.level = VK_COMMAND_BUFFER_LEVEL_PRIMARY,
+			.commandBufferCount = config.framesInFlight
+		};
+
+		commandBuffers = vk::raii::CommandBuffers(logicalDeviceHandle, vk::CommandBufferAllocateInfo(cmdBuffAllInfo));
+
+		VkFenceCreateInfo fenceCreateInfo{
+			.sType = VK_STRUCTURE_TYPE_FENCE_CREATE_INFO,
+			.pNext = NULL,
+			.flags = VK_FENCE_CREATE_SIGNALED_BIT
+		};
+
+		VkSemaphoreCreateInfo semaphoreCreateInfo{
+			.sType = VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO,
+			.pNext = NULL,
+			.flags = {}
+		};
+
+		for (int i = 0;i < config.framesInFlight; i++)
+		{
+			commandBufferReadyFences.push_back(vk::raii::Fence(logicalDeviceHandle, vk::FenceCreateInfo(fenceCreateInfo)));
+			imagePaintableSemaphores.push_back(vk::raii::Semaphore(logicalDeviceHandle, vk::SemaphoreCreateInfo(semaphoreCreateInfo)));
+		}
 	}
 
 	const Device::Config& Device::getConfig() const
@@ -138,6 +166,21 @@ namespace pyra
 	const vk::raii::PipelineCache& Device::getGraphicsPipelineCacheHandle() const
 	{
 		return graphicsPipelineCache;
+	}
+
+	const vk::raii::CommandBuffers& Device::getCommandBuffers() const
+	{
+		return commandBuffers;
+	}
+
+	const std::vector<vk::raii::Fence>& Device::getCommandBufferReadyFences() const
+	{
+		return commandBufferReadyFences;
+	}
+
+	const std::vector<vk::raii::Semaphore>& Device::getImagePaintableSemaphores() const
+	{
+		return imagePaintableSemaphores;
 	}
 
 }

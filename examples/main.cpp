@@ -26,6 +26,7 @@ int main()
 	renderer.constructWindowSurface(windowSurfaceInfo);
 
 	std::vector<pyra::Device::Config> deviceConfigs = renderer.getSuitableRenderDevices();
+	deviceConfigs.front().framesInFlight = 5;
 	renderer.selectRenderDevice(deviceConfigs.front());
 
 	int width, height;
@@ -37,34 +38,27 @@ int main()
 		.colorSpace = vk::ColorSpaceKHR::eSrgbNonlinear,
 		.presentMode = vk::PresentModeKHR::eMailbox
 	};
-	renderer.constructSwapchain(swapchainInfo);
+	swapchainInfo = renderer.constructSwapchain(swapchainInfo);
 
 	pyra::Shader::Config shaderInfo{
 		.file = "pyra_shader.spirv",
 		.vertexShaderEntries = {"VertexShaderMain"},
 		.fragmentShaderEntries = {"FragmentShaderMain"},
 	};
-	renderer.constructShaderEntries(shaderInfo);
+	renderer.constructShaders(shaderInfo);
 
 	pyra::GraphicsPipeline::Config pipelineInfo{
 		.vertexShaderEntry = "VertexShaderMain",
 		.fragmentShaderEntry = "FragmentShaderMain",
-		.targetFormat = vk::Format::eB8G8R8A8Unorm,
 		.primitiveTopology = vk::PrimitiveTopology::eTriangleList,
-		.polygonMode = vk::PolygonMode::eFill,
 		.faceCullingMode = vk::CullModeFlagBits::eBack,
 		.frontFace = vk::FrontFace::eClockwise,
-		.sampleCount = vk::SampleCountFlagBits::e1
 	};
 	renderer.constructGraphicsPipeline(pipelineInfo);
-	renderer.useGraphicsPipeline(pipelineInfo);
-
-	renderer.constructFramesInFlight(2);
 
 	while (!glfwWindowShouldClose(window))
 	{
 		glfwPollEvents();
-		renderer.drawFrame();
 	}
 
 	renderer.getRenderDevice()->getLogicalDeviceHandle().waitIdle();
