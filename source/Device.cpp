@@ -34,28 +34,40 @@ namespace pyra
 
 			pyra_warn(!device_features_supported, "{:} does not support required device features!",device_properties.deviceName.data());
 
-			bool suitable_queue_found = false;
 			auto queue_families = physical_device.getQueueFamilyProperties();
-			uint32_t queue_family_index = 0;
 
-			for (queue_family_index = 0;queue_family_index < queue_families.size();queue_family_index++)
+			bool graphics_queue_found = false;
+			uint32_t graphics_queue_family_index = 0;
+
+			for (graphics_queue_family_index = 0;graphics_queue_family_index < queue_families.size();graphics_queue_family_index++)
 			{
-				if (((queue_families[queue_family_index].queueFlags & vk::QueueFlagBits::eGraphics) != (vk::QueueFlags)0) && physical_device.getSurfaceSupportKHR(queue_family_index, *surface.getSurfaceHandle()))
+				if (((queue_families[graphics_queue_family_index].queueFlags & vk::QueueFlagBits::eGraphics) != (vk::QueueFlags)0))
 				{
-					suitable_queue_found = true;
+					graphics_queue_found = true;
 					break;
 				}
 			}
 
-			pyra_warn(!suitable_queue_found, "{:} does not have a suitable queue!", device_properties.deviceName.data());
+			bool presentation_queue_found = false;
+			uint32_t presentation_queue_family_index = 0;
+
+			for (;presentation_queue_family_index < queue_families.size();presentation_queue_family_index++)
+			{
+				if (physical_device.getSurfaceSupportKHR(presentation_queue_family_index, *surface.getSurfaceHandle()))
+				{
+					presentation_queue_found = true; 
+					break;
+				}
+			}
 
 			if (api_version_supported && 
 				device_extensions_supported && 
 				device_features_supported && 
-				suitable_queue_found
+				graphics_queue_found && 
+				presentation_queue_found
 				)
 			{
-				suitableDeviceConfigs.push_back({ physical_device,queue_family_index,device_extentions });
+				suitableDeviceConfigs.push_back(Device::Config{ .physicalDevice = physical_device,.graphicsQueueFamilyIndex = graphics_queue_family_index,.presentQueueFamilyIndex = presentation_queue_family_index,.device_extentions = device_extentions });
 			}
 
 		}
@@ -66,7 +78,7 @@ namespace pyra
 	Device::Device(const Device::Config config) : config(config)
 	{
 		float queuePriority = 0.5f;
-		VkDeviceQueueCreateInfo queueInfo{
+		VkDeviceQueueCreateInfo graphicsQueueInfo{
 			.sType = VK_STRUCTURE_TYPE_DEVICE_QUEUE_CREATE_INFO,
 			.pNext = NULL,
 			.flags = NULL,
@@ -74,6 +86,17 @@ namespace pyra
 			.queueCount = 1,
 			.pQueuePriorities = &queuePriority
 		};
+
+		VkDeviceQueueCreateInfo presentationQueueInfo{
+			.sType = VK_STRUCTURE_TYPE_DEVICE_QUEUE_CREATE_INFO,
+			.pNext = NULL,
+			.flags = {},
+			.queueFamilyIndex = config.presentQueueFamilyIndex,
+			.queueCount = 1,
+			.pQueuePriorities = &queuePriority
+		};
+
+		std::array<VkDeviceQueueCreateInfo, 2> deviceQueueCreateInfos{ graphicsQueueInfo,presentationQueueInfo };
 
 		VkPhysicalDeviceFeatures2 feats;
 		auto features = vk::StructureChain<vk::PhysicalDeviceFeatures2, vk::PhysicalDeviceVulkan11Features, vk::PhysicalDeviceVulkan13Features, vk::PhysicalDeviceExtendedDynamicStateFeaturesEXT>();
@@ -86,14 +109,15 @@ namespace pyra
 			.sType = VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO,
 			.pNext = &features.get<vk::PhysicalDeviceFeatures2>(),
 			.flags = NULL,
-			.queueCreateInfoCount = 1,
-			.pQueueCreateInfos = &queueInfo,
+			.queueCreateInfoCount = 2,
+			.pQueueCreateInfos = deviceQueueCreateInfos.data(),
 			.enabledExtensionCount = (uint32_t)config.device_extentions.size(),
 			.ppEnabledExtensionNames = config.device_extentions.data(),
 		};
 
 		logicalDeviceHandle = vk::raii::Device(config.physicalDevice, vk::DeviceCreateInfo(deviceInfo));
 		graphicsQueueHandle = vk::raii::Queue(logicalDeviceHandle, config.graphicsQueueFamilyIndex, 0);
+		presentationQueueHandle = vk::raii::Queue(logicalDeviceHandle, config.presentQueueFamilyIndex, 0);
 
 		VkCommandPoolCreateInfo commandPoolInfo{
 			.sType = VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO,
@@ -156,6 +180,11 @@ namespace pyra
 	const vk::raii::Queue& Device::getGraphicsQueueHandle() const
 	{
 		return graphicsQueueHandle;
+	}
+
+	const vk::raii::Queue& Device::getPresentationQueueHandle() const
+	{
+		return presentationQueueHandle;
 	}
 
 	const vk::raii::CommandPool& Device::getCommandPoolHandle() const

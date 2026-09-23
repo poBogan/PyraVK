@@ -37,6 +37,8 @@ namespace pyra
 			this->config.presentMode = vk::PresentModeKHR::eFifo;
 		}
 
+		std::array<uint32_t, 2> queueFamilyIndicies{ device.getConfig().graphicsQueueFamilyIndex, device.getConfig().presentQueueFamilyIndex };
+
 		VkSwapchainCreateInfoKHR swapchainInfo{
 			.sType = VK_STRUCTURE_TYPE_SWAPCHAIN_CREATE_INFO_KHR,
 			.pNext = NULL,
@@ -48,7 +50,9 @@ namespace pyra
 			.imageExtent = (VkExtent2D)this->config.imageExtent,
 			.imageArrayLayers = 1,
 			.imageUsage = VkImageUsageFlagBits::VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT,
-			.imageSharingMode = VkSharingMode::VK_SHARING_MODE_EXCLUSIVE,
+			.imageSharingMode = VkSharingMode::VK_SHARING_MODE_CONCURRENT,
+			.queueFamilyIndexCount = 2,
+			.pQueueFamilyIndices = queueFamilyIndicies.data(),
 			.preTransform = (VkSurfaceTransformFlagBitsKHR)surface_capabilities.currentTransform,
 			.compositeAlpha = VkCompositeAlphaFlagBitsKHR::VK_COMPOSITE_ALPHA_OPAQUE_BIT_KHR,
 			.presentMode = (VkPresentModeKHR)this->config.presentMode,
