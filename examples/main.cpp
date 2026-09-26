@@ -26,7 +26,6 @@ int main()
 	renderer.constructWindowSurface(windowSurfaceInfo);
 
 	std::vector<pyra::Device::Config> deviceConfigs = renderer.getSuitableRenderDevices();
-	deviceConfigs.front().framesInFlight = 5;
 	renderer.selectRenderDevice(deviceConfigs.front());
 
 	int width, height;

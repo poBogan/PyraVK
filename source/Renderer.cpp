@@ -39,7 +39,7 @@ namespace pyra
 	{
 		pyra_assert(vulkanInstance.has_value(), "Cannot fetch devices. No vulkan instance found!"); 
 		pyra_assert(windowSurface.has_value(), "Cannot fetch devices. No surface found");
-		return Device::getSuitableDevices(vulkanInstance.value(), windowSurface.value(), { vk::KHRSwapchainExtensionName} );
+		return Device::getSuitableDevices(vulkanInstance.value(), windowSurface.value() );
 	}
 
 	void Renderer::selectRenderDevice(Device::Config config)
@@ -49,8 +49,6 @@ namespace pyra
 
 		destroyRenderDevice();
 		renderDevice.emplace(Device(config));
-		currentFrame = 0; 
-		frames_in_flight_count = config.framesInFlight;
 	}
 
 	Swapchain::Config Renderer::constructSwapchain(Swapchain::Config requestedConfig)

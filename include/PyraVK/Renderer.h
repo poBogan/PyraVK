@@ -21,9 +21,6 @@ namespace pyra
 		std::optional<Swapchain> swapchain;
 		std::unordered_map<std::string, std::shared_ptr<Shader>> shaderEntries;
 		std::unordered_map<GraphicsPipeline::Config,GraphicsPipeline,GraphicsPipeline::Hasher> graphicsPipelines;
-
-		uint32_t currentFrame = 0;
-		uint32_t frames_in_flight_count = 0;
 	public:
 		static void createRenderer();
 		static Renderer& getRenderer();
