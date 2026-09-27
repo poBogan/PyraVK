@@ -9,7 +9,6 @@
 
 namespace pyra
 {
-
 	class Renderer : public Base
 	{
 	private:
@@ -21,6 +20,12 @@ namespace pyra
 		std::optional<Swapchain> swapchain;
 		std::unordered_map<std::string, std::shared_ptr<Shader>> shaderEntries;
 		std::unordered_map<GraphicsPipeline::Config,GraphicsPipeline,GraphicsPipeline::Hasher> graphicsPipelines;
+
+		uint32_t currentFrame = 0;
+		uint32_t framesInFlight = 0; 
+		vk::raii::CommandBuffers commandBuffers = nullptr; 
+		std::vector<vk::raii::Fence> commandBufferFences; 
+		std::vector<vk::raii::Semaphore> commandBufferSemaphores;
 	public:
 		static void createRenderer();
 		static Renderer& getRenderer();
@@ -34,6 +39,10 @@ namespace pyra
 
 		void constructShaders(Shader::Config config);
 		void constructGraphicsPipeline(GraphicsPipeline::Config config);
+
+		void constructFramesInFlight(uint32_t framesInFlightCount);
+
+		void Draw();
 
 		void destroyVulkanInstance();
 		void destroyWindowSurface();
