@@ -123,50 +123,18 @@ namespace pyra
 		}
 	}
 
-	void Renderer::constructFramesInFlight(uint32_t framesInFlightCount)
+	void Renderer::constructFrames(Frames::Config config)
 	{
-		pyra_assert(vulkanInstance.has_value(), "Cannot construct frames in flight. No vulkan instance found!");
-		pyra_assert(windowSurface.has_value(), "Cannot construct frames in flight. No surface found!");
-		pyra_assert(renderDevice.has_value(), "Cannot construct frames in flight. No render device selected!");
+		pyra_assert(vulkanInstance.has_value(), "Cannot construct frames. No vulkan instance found!");
+		pyra_assert(windowSurface.has_value(), "Cannot construct frames. No surface found!");
+		pyra_assert(renderDevice.has_value(), "Cannot construct frames. No render device selected!");
 
-		commandBuffers.clear(); 
-		commandBufferFences.clear();
-		commandBufferSemaphores.clear();
+		frames.emplace(Frames(renderDevice.value(), config));
+	}
 
-		currentFrame = 0;
-		framesInFlight = framesInFlightCount;
+	void transition_image_layout()
+	{
 
-		VkCommandBufferAllocateInfo commandBufferAllocateInfo{
-			.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO,
-			.pNext = NULL,
-			.commandPool = (VkCommandPool)*renderDevice->getCommandPoolHandle(),
-			.level = VK_COMMAND_BUFFER_LEVEL_PRIMARY,
-			.commandBufferCount = framesInFlight
-		};
-
-		commandBuffers = vk::raii::CommandBuffers(renderDevice->getLogicalDeviceHandle(), commandBufferAllocateInfo); 
-
-		VkFenceCreateInfo fenceCreateInfo{
-			.sType = VK_STRUCTURE_TYPE_FENCE_CREATE_INFO,
-			.pNext = NULL,
-			.flags = VK_FENCE_CREATE_SIGNALED_BIT
-		};
-
-		VkSemaphoreCreateInfo semaphoreCreateInfo{
-			.sType = VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO,
-			.pNext = NULL,
-			.flags = NULL
-		};
-
-		for (int i = 0;i < framesInFlight;i++)
-		{
-			commandBufferFences.push_back(vk::raii::Fence(renderDevice->getLogicalDeviceHandle(), fenceCreateInfo)); 
-			commandBufferSemaphores.push_back(vk::raii::Semaphore(renderDevice->getLogicalDeviceHandle(), semaphoreCreateInfo));
-		}
-
-		commandBuffers.shrink_to_fit(); 
-		commandBufferFences.shrink_to_fit(); 
-		commandBufferSemaphores.shrink_to_fit();
 	}
 
 	void Renderer::Draw()
@@ -175,7 +143,6 @@ namespace pyra
 		pyra_assert(windowSurface.has_value(), "Cannot draw frame. No window surface found!");
 		pyra_assert(renderDevice.has_value(), "Cannot draw frame. No render device selected!");
 		pyra_assert(swapchain.has_value(), "Cannot draw frame. No swapchain found!");
-
 
 	}
 

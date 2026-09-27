@@ -6,6 +6,7 @@
 #include <PyraVK/Swapchain.h>
 #include <PyraVk/Shader.h>
 #include <PyraVK/GraphicsPipeline.h>
+#include <PyraVK/Frames.h>
 
 namespace pyra
 {
@@ -18,6 +19,7 @@ namespace pyra
 		std::optional<Surface> windowSurface; 
 		std::optional<Device> renderDevice; 
 		std::optional<Swapchain> swapchain;
+		std::optional<Frames> frames;
 		std::unordered_map<std::string, std::shared_ptr<Shader>> shaderEntries;
 		std::unordered_map<GraphicsPipeline::Config,GraphicsPipeline,GraphicsPipeline::Hasher> graphicsPipelines;
 
@@ -35,12 +37,12 @@ namespace pyra
 
 		std::vector<Device::Config> getSuitableRenderDevices();
 		void selectRenderDevice(Device::Config config);
+
 		Swapchain::Config constructSwapchain(Swapchain::Config requestedConfig);
 
 		void constructShaders(Shader::Config config);
 		void constructGraphicsPipeline(GraphicsPipeline::Config config);
-
-		void constructFramesInFlight(uint32_t framesInFlightCount);
+		void constructFrames(Frames::Config config);
 
 		void Draw();
 
