@@ -138,7 +138,7 @@ namespace pyra
 			.queueFamilyIndex = config.graphicsQueueFamilyIndex
 		};
 
-		commandPool = vk::raii::CommandPool(logicalDeviceHandle, commandPoolInfo);
+		commandPoolHandle = vk::raii::CommandPool(logicalDeviceHandle, commandPoolInfo);
 
 		VkPipelineCacheCreateInfo graphicsPipelineCacheInfo{
 			.sType = VK_STRUCTURE_TYPE_PIPELINE_CACHE_CREATE_INFO,
@@ -169,6 +169,11 @@ namespace pyra
 	const vk::raii::Queue& Device::getPresentationQueueHandle() const
 	{
 		return presentationQueueHandle == nullptr ? graphicsQueueHandle : presentationQueueHandle;
+	}
+
+	const vk::raii::CommandPool& Device::getCommandPoolHandle() const
+	{
+		return commandPoolHandle;
 	}
 
 	const vk::raii::PipelineCache& Device::getGraphicsPipelineCacheHandle() const

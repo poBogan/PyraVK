@@ -18,7 +18,7 @@ namespace pyra
 		vk::raii::Device logicalDeviceHandle = nullptr; 
 		vk::raii::Queue graphicsQueueHandle = nullptr;
 		vk::raii::Queue presentationQueueHandle = nullptr;
-		vk::raii::CommandPool commandPool = nullptr;
+		vk::raii::CommandPool commandPoolHandle = nullptr;
 		vk::raii::PipelineCache graphicsPipelineCache = nullptr;
 		const Device::Config config;
 	public : 
@@ -29,6 +29,7 @@ namespace pyra
 		const vk::raii::Device& getLogicalDeviceHandle() const;
 		const vk::raii::Queue& getGraphicsQueueHandle() const;
 		const vk::raii::Queue& getPresentationQueueHandle() const;
+		const vk::raii::CommandPool& getCommandPoolHandle() const;
 		const vk::raii::PipelineCache& getGraphicsPipelineCacheHandle() const;
 	};
 
