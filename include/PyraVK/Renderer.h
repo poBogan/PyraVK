@@ -7,9 +7,17 @@
 #include <PyraVk/Shader.h>
 #include <PyraVK/GraphicsPipeline.h>
 #include <PyraVK/Frames.h>
+#include <PyraVK/VertexBuffer.h>
 
 namespace pyra
 {
+
+	struct RenderTarget
+	{
+		std::shared_ptr<VertexBuffer> vertexBuffer;
+		GraphicsPipeline::Config graphicsPipeline;
+	};
+
 	class Renderer : public Base
 	{
 	private:
@@ -33,12 +41,11 @@ namespace pyra
 		void selectRenderDevice(Device::Config config);
 
 		Swapchain::Config constructSwapchain(Swapchain::Config requestedConfig);
-
 		void constructShaders(Shader::Config config);
 		void constructGraphicsPipeline(GraphicsPipeline::Config config);
 		void constructFrames(Frames::Config config);
 
-		void Draw();
+		void Draw(RenderTarget renderingTarget, Viewport viewport, Scissor scissor,glm::vec4 clearColor = {0.f, 0.f, 0.f, 1.f});
 
 		void destroyVulkanInstance();
 		void destroyWindowSurface();
@@ -51,7 +58,6 @@ namespace pyra
 		const std::optional<Swapchain>& getSwapchain() const;
 		const std::unordered_map<std::string, std::shared_ptr<Shader>>& getShaderEntries() const;
 		const std::unordered_map<GraphicsPipeline::Config, GraphicsPipeline, GraphicsPipeline::Hasher>& getGraphicsPipelines() const;
-		const GraphicsPipeline::Config& getCurrentGraphicsPipelineConfig() const;
 	};
 
 };

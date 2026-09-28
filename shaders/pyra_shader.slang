@@ -1,21 +1,28 @@
 
-static const float2 verticies[3] = { float2(1,1), float2(0,0), float2(1,0) };
+
+struct VertexShaderInput
+{
+    float2 position; 
+    float4 color;
+};
 
 struct VertexShaderOutput
 {
-    float4 vertexCoords : SV_Position; 
+    float4 position : SV_Position;
+    float4 color;
 };
 
 [shader("vertex")]
-VertexShaderOutput VertexShaderMain(uint32_t vertexID : SV_VertexID)
+VertexShaderOutput vsEntry(VertexShaderInput vsInput)
 {
-    VertexShaderOutput vertex;
-    vertex.vertexCoords = float4(verticies[vertexID], 0.0, 1.0f);
-    return vertex;
-};
+    VertexShaderOutput vsOutput;
+    vsOutput.position = float4(vsInput.position, 0.0f, 1.f);
+    vsOutput.color = vsInput.color;
+    return vsOutput;
+}
 
 [shader("fragment")]
-float4 FragmentShaderMain(VertexShaderOutput vertIn) 
+float4 fsEntry(VertexShaderOutput fsInput)
 {
-    return float4(1.0, 0.0, 0.0, 1.0);
-};
+    return fsInput.color;
+}

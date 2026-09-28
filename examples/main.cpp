@@ -41,23 +41,37 @@ int main()
 
 	pyra::Shader::Config shaderInfo{
 		.file = "pyra_shader.spirv",
-		.vertexShaderEntries = {"VertexShaderMain"},
-		.fragmentShaderEntries = {"FragmentShaderMain"},
+		.vertexShaderEntries = {"vsEntry"},
+		.fragmentShaderEntries = {"fsEntry"},
 	};
 	renderer.constructShaders(shaderInfo);
 
 	pyra::GraphicsPipeline::Config pipelineInfo{
-		.vertexShaderEntry = "VertexShaderMain",
-		.fragmentShaderEntry = "FragmentShaderMain",
+		.vertexShaderEntry = "vsEntry",
+		.fragmentShaderEntry = "fsEntry",
+		.colorAttachmentFormat = swapchainInfo.imageFormat,
 		.primitiveTopology = vk::PrimitiveTopology::eTriangleList,
 		.faceCullingMode = vk::CullModeFlagBits::eBack,
 		.frontFace = vk::FrontFace::eClockwise,
 	};
 	renderer.constructGraphicsPipeline(pipelineInfo);
 
+	pyra::Frames::Config framesConfig{ .concurrentFramesCount = 3 }; 
+	renderer.constructFrames(framesConfig);
+
+	std::vector<pyra::Vertex> verticies{
+		{{0.f,1.f}, {1.f,1.f,0.f,1.f}},
+		{{1.f,0.f}, {1.f,0.f,0.f,1.f}},
+		{{1.f,1.f}, {1.f,0.f,0.f,1.f}},
+	}; 
+
+	auto vertexBuffer = std::make_shared<pyra::VertexBuffer>(renderer.getRenderDevice().value(), verticies);
+
+
 	while (!glfwWindowShouldClose(window))
 	{
 		glfwPollEvents();
+		renderer.Draw({ vertexBuffer,pipelineInfo },{{0,0}, {width,height}}, {{0,0}, {width,height}});
 	}
 
 	renderer.getRenderDevice()->getLogicalDeviceHandle().waitIdle();

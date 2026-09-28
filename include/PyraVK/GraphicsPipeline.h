@@ -8,6 +8,17 @@
 
 namespace pyra
 {
+	struct Viewport
+	{
+		glm::vec2 offset; 
+		glm::vec2 extent;
+	};
+
+	struct Scissor
+	{
+		glm::vec2 offset; 
+		glm::vec2 extent;
+	};
 
 	class GraphicsPipeline : public Base
 	{

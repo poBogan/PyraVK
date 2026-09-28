@@ -132,18 +132,161 @@ namespace pyra
 		frames.emplace(Frames(renderDevice.value(), config));
 	}
 
-	void transition_image_layout()
+	void transition_image_layout(
+		const vk::raii::CommandBuffer& commandBuffer,
+		VkPipelineStageFlags2 srcStageMask,
+		VkPipelineStageFlags2 dstStageMask,
+		VkAccessFlags2	srcAccessMask,
+		VkAccessFlags2	dstAccessMask,
+		VkImageLayout	oldImageLayout,
+		VkImageLayout	newImageLayout,
+		uint32_t		srcQueueFamilyIndex,
+		uint32_t		dstQueueFamilyIndex,
+		VkImage			image
+	)
 	{
-
+		VkImageMemoryBarrier2 barrier{
+			.sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER_2,
+			.pNext = NULL,
+			.srcStageMask = srcStageMask,
+			.srcAccessMask = srcAccessMask,
+			.dstStageMask = dstStageMask,
+			.dstAccessMask = dstAccessMask,
+			.oldLayout = oldImageLayout,
+			.newLayout = newImageLayout,
+			.srcQueueFamilyIndex = srcQueueFamilyIndex,
+			.dstQueueFamilyIndex = dstQueueFamilyIndex,
+			.image = image,
+			.subresourceRange = {.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT, .baseMipLevel = 0, .levelCount = 1, .baseArrayLayer = 0, .layerCount = 1}
+		}; 		
+		VkDependencyInfo dependencyInfo{
+			.sType = VK_STRUCTURE_TYPE_DEPENDENCY_INFO,
+			.pNext = NULL,
+			.dependencyFlags = NULL,
+			.memoryBarrierCount = 0,
+			.pMemoryBarriers = NULL,
+			.bufferMemoryBarrierCount = 0,
+			.pBufferMemoryBarriers = NULL,
+			.imageMemoryBarrierCount = 1,
+			.pImageMemoryBarriers = &barrier
+		}; 
+		commandBuffer.pipelineBarrier2(dependencyInfo);
 	}
 
-	void Renderer::Draw()
+	void Renderer::Draw(RenderTarget renderTarget, Viewport viewport, Scissor scissor, glm::vec4 clearColor)
 	{
 		pyra_assert(vulkanInstance.has_value(), "Cannot draw frame. No vulkan instance found!"); 
 		pyra_assert(windowSurface.has_value(), "Cannot draw frame. No window surface found!");
 		pyra_assert(renderDevice.has_value(), "Cannot draw frame. No render device selected!");
 		pyra_assert(swapchain.has_value(), "Cannot draw frame. No swapchain found!");
+		pyra_assert(frames.has_value(), "Cannot draw frame. No frames are not constructed!");
 
+		renderDevice->getLogicalDeviceHandle().waitForFences(*frames->getCurrentFrameCommandBufferFence(), VK_TRUE, UINT64_MAX);
+		renderDevice->getLogicalDeviceHandle().resetFences(*frames->getCurrentFrameCommandBufferFence());
+
+		auto [result, imageIdx] = swapchain->getSwapchainHandle().acquireNextImage(UINT64_MAX, *frames->getCurrentFrameCommandBufferSemaphore());
+
+		const auto& commandBuffer = frames->getCurrentFrameCommandBuffer();
+
+		commandBuffer.begin({});
+
+		transition_image_layout(
+			commandBuffer,
+			VK_PIPELINE_STAGE_2_COLOR_ATTACHMENT_OUTPUT_BIT,
+			VK_PIPELINE_STAGE_2_COLOR_ATTACHMENT_OUTPUT_BIT,
+			{},
+			VK_ACCESS_2_COLOR_ATTACHMENT_WRITE_BIT,
+			VK_IMAGE_LAYOUT_UNDEFINED,
+			VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL,
+			VK_QUEUE_FAMILY_IGNORED,
+			VK_QUEUE_FAMILY_IGNORED,
+			(VkImage)swapchain->getImages()[imageIdx]
+			);
+
+		VkClearColorValue clearColorValue; 
+		clearColorValue.float32[0] = clearColor.r;
+		clearColorValue.float32[1] = clearColor.g;
+		clearColorValue.float32[2] = clearColor.b;
+		clearColorValue.float32[3] = clearColor.a;
+
+		VkRenderingAttachmentInfo colorAttachmentInfo{
+			.sType = VK_STRUCTURE_TYPE_RENDERING_ATTACHMENT_INFO,
+			.pNext = NULL,
+			.imageView = (VkImageView)*swapchain->getImageViews()[imageIdx],
+			.imageLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL,
+			.loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR,
+			.storeOp = VK_ATTACHMENT_STORE_OP_STORE,
+			.clearValue = clearColorValue,
+		};
+
+		VkRenderingInfo renderingInfo{
+			.sType = VK_STRUCTURE_TYPE_RENDERING_INFO,
+			.pNext = NULL,
+			.flags = {},
+			.renderArea = {.offset = {0,0},.extent = swapchain->getConfig().imageExtent},
+			.layerCount = 1,
+			.viewMask = 0,
+			.colorAttachmentCount = 1,
+			.pColorAttachments = &colorAttachmentInfo
+		};
+
+		commandBuffer.beginRendering(renderingInfo); 
+		commandBuffer.bindPipeline(vk::PipelineBindPoint::eGraphics, graphicsPipelines.at(renderTarget.graphicsPipeline).getGraphicsPipelineHandle());
+		commandBuffer.bindVertexBuffers(0, *renderTarget.vertexBuffer->getVertexBufferHandle(), { 0 });
+		commandBuffer.setViewport(0, vk::Viewport(viewport.offset.x, viewport.offset.y, viewport.extent.x, viewport.extent.y, 0.f, 1.f));
+		commandBuffer.setScissor(0, vk::Rect2D(VkRect2D{ (int32_t)viewport.offset.x, (int32_t)viewport.offset.y, (uint32_t)viewport.extent.x, (uint32_t)viewport.extent.y }));
+		commandBuffer.draw(renderTarget.vertexBuffer->getVertexCount(), 1, 0, 0);
+		commandBuffer.endRendering();
+
+		transition_image_layout(
+			commandBuffer,
+			VK_PIPELINE_STAGE_2_COLOR_ATTACHMENT_OUTPUT_BIT,
+			VK_PIPELINE_STAGE_2_BOTTOM_OF_PIPE_BIT,
+			VK_ACCESS_2_COLOR_ATTACHMENT_WRITE_BIT,
+			{},
+			VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL,
+			VK_IMAGE_LAYOUT_PRESENT_SRC_KHR,
+			VK_QUEUE_FAMILY_IGNORED,
+			VK_QUEUE_FAMILY_IGNORED,
+			(VkImage)swapchain->getImages()[imageIdx]
+		);
+
+		commandBuffer.end();
+
+		VkSemaphore wS = (VkSemaphore)*frames->getCurrentFrameCommandBufferSemaphore();
+		VkPipelineStageFlags waitDestination = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
+		VkCommandBuffer cB = (VkCommandBuffer)*frames->getCurrentFrameCommandBuffer();
+		VkSemaphore sS = (VkSemaphore)*swapchain->getImagePresentableSemaphores()[imageIdx];
+
+		VkSubmitInfo submitInfo{
+			.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO,
+			.pNext = NULL,
+			.waitSemaphoreCount = 1,
+			.pWaitSemaphores = &wS,
+			.pWaitDstStageMask = &waitDestination,
+			.commandBufferCount = 1,
+			.pCommandBuffers = &cB,
+			.signalSemaphoreCount = 1,
+			.pSignalSemaphores = &sS
+		};
+
+		renderDevice->getGraphicsQueueHandle().submit(vk::SubmitInfo(submitInfo), *frames->getCurrentFrameCommandBufferFence());
+
+		VkSwapchainKHR sC = (VkSwapchainKHR)*swapchain->getSwapchainHandle();
+
+		VkPresentInfoKHR presentInfo{
+			.sType = VK_STRUCTURE_TYPE_PRESENT_INFO_KHR,
+			.pNext = NULL,
+			.waitSemaphoreCount = 1,
+			.pWaitSemaphores = &sS,
+			.swapchainCount = 1,
+			.pSwapchains = &sC,
+			.pImageIndices = &imageIdx,
+			.pResults = NULL
+		};
+
+		renderDevice->getGraphicsQueueHandle().presentKHR(vk::PresentInfoKHR(presentInfo));
+		frames->nextFrame();
 	}
 
 	void Renderer::destroyVulkanInstance()

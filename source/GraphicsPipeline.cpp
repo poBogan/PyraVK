@@ -1,4 +1,5 @@
 #include <PyraVK/GraphicsPipeline.h>
+#include <PyraVK/VertexBuffer.h>
 
 namespace pyra
 {
@@ -10,14 +11,17 @@ namespace pyra
 			{.sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO, .stage = VK_SHADER_STAGE_FRAGMENT_BIT, .module = (VkShaderModule)*fragmentShaderModule.getShaderModuleHandle(), .pName = config.fragmentShaderEntry.c_str()},
 		}; 
 
+		auto bindingDescription = Vertex::getVertexBindingDescription();
+		auto attributeDescriptions = Vertex::getVertexAttributeDescriptions();
+
 		VkPipelineVertexInputStateCreateInfo vertexInputState{
 			.sType = VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO,
 			.pNext = NULL,
 			.flags = NULL,
-			.vertexBindingDescriptionCount = 0,
-			.pVertexBindingDescriptions = NULL,
-			.vertexAttributeDescriptionCount = 0,
-			.pVertexAttributeDescriptions = NULL
+			.vertexBindingDescriptionCount = 1,
+			.pVertexBindingDescriptions = &bindingDescription,
+			.vertexAttributeDescriptionCount = (uint32_t)attributeDescriptions.size(),
+			.pVertexAttributeDescriptions = attributeDescriptions.data()
 		};
 
 		VkPipelineInputAssemblyStateCreateInfo assemblyStateInfo{
