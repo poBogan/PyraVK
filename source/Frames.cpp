@@ -79,7 +79,8 @@ namespace pyra
 
 	void Frames::nextFrame()
 	{
-		++currentFrame %= config.concurrentFramesCount;
+		currentFrame++;
+		currentFrame %= config.concurrentFramesCount;
 	}
 
 

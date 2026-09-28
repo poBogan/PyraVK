@@ -163,13 +163,7 @@ namespace pyra
 		shaderEntries.clear(); 
 		graphicsPipelines.clear();
 		swapchain.reset();
-
-		commandBuffers.clear(); 
-		commandBufferFences.clear(); 
-		commandBufferSemaphores.clear(); 
-		currentFrame = 0; 
-		framesInFlight = 0;
-
+		frames.reset();
 		renderDevice.reset();
 	}
 

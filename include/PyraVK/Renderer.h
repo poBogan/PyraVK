@@ -22,12 +22,6 @@ namespace pyra
 		std::optional<Frames> frames;
 		std::unordered_map<std::string, std::shared_ptr<Shader>> shaderEntries;
 		std::unordered_map<GraphicsPipeline::Config,GraphicsPipeline,GraphicsPipeline::Hasher> graphicsPipelines;
-
-		uint32_t currentFrame = 0;
-		uint32_t framesInFlight = 0; 
-		vk::raii::CommandBuffers commandBuffers = nullptr; 
-		std::vector<vk::raii::Fence> commandBufferFences; 
-		std::vector<vk::raii::Semaphore> commandBufferSemaphores;
 	public:
 		static void createRenderer();
 		static Renderer& getRenderer();
