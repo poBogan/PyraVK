@@ -35,11 +35,7 @@ namespace pyra
 		if (std::ranges::find(supported_present_modes, config.presentMode) == supported_present_modes.end())
 		{
 			this->config.presentMode = vk::PresentModeKHR::eFifo;
-		}
-
-		std::vector<uint32_t> queueFamiliyIndicies = { device.getConfig().graphicsQueueFamilyIndex }; 
-		if (device.getPresentationQueueHandle() != nullptr)
-			queueFamiliyIndicies.push_back(device.getConfig().presentQueueFamilyIndex);
+		}		
 
 		VkSwapchainCreateInfoKHR swapchainInfo{
 			.sType = VK_STRUCTURE_TYPE_SWAPCHAIN_CREATE_INFO_KHR,
@@ -52,9 +48,9 @@ namespace pyra
 			.imageExtent = (VkExtent2D)this->config.imageExtent,
 			.imageArrayLayers = 1,
 			.imageUsage = VkImageUsageFlagBits::VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT,
-			.imageSharingMode = queueFamiliyIndicies.size() > 1 ? VK_SHARING_MODE_CONCURRENT : VK_SHARING_MODE_EXCLUSIVE,
-			.queueFamilyIndexCount = (uint32_t)queueFamiliyIndicies.size(),
-			.pQueueFamilyIndices = queueFamiliyIndicies.data(),
+			.imageSharingMode = VK_SHARING_MODE_EXCLUSIVE,
+			.queueFamilyIndexCount = 1,
+			.pQueueFamilyIndices = &device.getConfig().graphicsQueueFamilyIndex,
 			.preTransform = (VkSurfaceTransformFlagBitsKHR)surface_capabilities.currentTransform,
 			.compositeAlpha = VkCompositeAlphaFlagBitsKHR::VK_COMPOSITE_ALPHA_OPAQUE_BIT_KHR,
 			.presentMode = (VkPresentModeKHR)this->config.presentMode,

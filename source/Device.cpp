@@ -50,26 +50,25 @@ namespace pyra
 			} 
 
 			auto queueFamilies = currentPhysicalDevice.getQueueFamilyProperties();
-			int32_t graphicsQueueFamilyIndex = -1, presentQueueFamilyIndex = -1;
+			int32_t graphicsQueueFamilyIndex = -1;
 
 			for (int32_t i = 0;i < queueFamilies.size();i++)
 			{
 				vk::QueueFamilyProperties& currentFamily = queueFamilies[i];
-				if (currentFamily.queueFlags & vk::QueueFlagBits::eGraphics)
+				if ((currentFamily.queueFlags & vk::QueueFlagBits::eGraphics) && currentPhysicalDevice.getSurfaceSupportKHR(i, *surface.getSurfaceHandle()))
+				{
 					graphicsQueueFamilyIndex = i;
-				if (currentPhysicalDevice.getSurfaceSupportKHR(i, *surface.getSurfaceHandle()))
-					presentQueueFamilyIndex = i;
-				if (i == graphicsQueueFamilyIndex == presentQueueFamilyIndex)
 					break;
+				}
 			}
 
-			if (graphicsQueueFamilyIndex == -1 || presentQueueFamilyIndex == -1)
+			if (graphicsQueueFamilyIndex == -1)
 			{
-				spdlog::error("{:} does not have suitable queue(s)", device_properties.deviceName.data()); 
+				spdlog::error("{:} does not have suitable queue", device_properties.deviceName.data()); 
 				continue;
 			}
 
-			suitableDeviceConfigs.push_back({ currentPhysicalDevice,(uint32_t)graphicsQueueFamilyIndex,(uint32_t)presentQueueFamilyIndex });
+			suitableDeviceConfigs.push_back({ currentPhysicalDevice,(uint32_t)graphicsQueueFamilyIndex});
 
 		}
 
@@ -78,11 +77,9 @@ namespace pyra
 
 	Device::Device(const Device::Config config) : config(config)
 	{
-		bool seperatePresentationQueue = config.graphicsQueueFamilyIndex != config.presentQueueFamilyIndex;
-
 		std::vector<VkDeviceQueueCreateInfo> deviceQueueInfos;
 
-		float queuePriority = 0.5f;
+		float queuePriority = 0.50f;
 		VkDeviceQueueCreateInfo graphicsQueueInfo{
 			.sType = VK_STRUCTURE_TYPE_DEVICE_QUEUE_CREATE_INFO,
 			.pNext = NULL,
@@ -92,19 +89,6 @@ namespace pyra
 			.pQueuePriorities = &queuePriority
 		};
 		deviceQueueInfos.push_back(graphicsQueueInfo);
-
-		if (seperatePresentationQueue)
-		{
-			VkDeviceQueueCreateInfo presentationQueueInfo{
-				.sType = VK_STRUCTURE_TYPE_DEVICE_QUEUE_CREATE_INFO,
-				.pNext = NULL,
-				.flags = {},
-				.queueFamilyIndex = config.presentQueueFamilyIndex,
-				.queueCount = 1,
-				.pQueuePriorities = &queuePriority
-			};
-			deviceQueueInfos.push_back(presentationQueueInfo);
-		}
 
 		VkPhysicalDeviceFeatures2 feats;
 		auto features = vk::StructureChain<vk::PhysicalDeviceFeatures2, vk::PhysicalDeviceVulkan11Features, vk::PhysicalDeviceVulkan13Features, vk::PhysicalDeviceExtendedDynamicStateFeaturesEXT>();
@@ -127,9 +111,6 @@ namespace pyra
 
 		logicalDeviceHandle = vk::raii::Device(config.physicalDevice, vk::DeviceCreateInfo(deviceInfo));
 		graphicsQueueHandle = vk::raii::Queue(logicalDeviceHandle, config.graphicsQueueFamilyIndex, 0);
-
-		if(seperatePresentationQueue) 
-			presentationQueueHandle = vk::raii::Queue(logicalDeviceHandle, config.presentQueueFamilyIndex, 0);
 
 		VkCommandPoolCreateInfo commandPoolInfo{
 			.sType = VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO,
@@ -164,11 +145,6 @@ namespace pyra
 	const vk::raii::Queue& Device::getGraphicsQueueHandle() const
 	{
 		return graphicsQueueHandle;
-	}
-
-	const vk::raii::Queue& Device::getPresentationQueueHandle() const
-	{
-		return presentationQueueHandle == nullptr ? graphicsQueueHandle : presentationQueueHandle;
 	}
 
 	const vk::raii::CommandPool& Device::getCommandPoolHandle() const

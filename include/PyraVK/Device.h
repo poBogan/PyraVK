@@ -12,12 +12,10 @@ namespace pyra
 		{
 			const vk::raii::PhysicalDevice physicalDevice;
 			const uint32_t graphicsQueueFamilyIndex;
-			const uint32_t presentQueueFamilyIndex;
 		};
 	private : 
 		vk::raii::Device logicalDeviceHandle = nullptr; 
 		vk::raii::Queue graphicsQueueHandle = nullptr;
-		vk::raii::Queue presentationQueueHandle = nullptr;
 		vk::raii::CommandPool commandPoolHandle = nullptr;
 		vk::raii::PipelineCache graphicsPipelineCache = nullptr;
 		const Device::Config config;
@@ -28,7 +26,6 @@ namespace pyra
 		const Device::Config& getConfig() const;
 		const vk::raii::Device& getLogicalDeviceHandle() const;
 		const vk::raii::Queue& getGraphicsQueueHandle() const;
-		const vk::raii::Queue& getPresentationQueueHandle() const;
 		const vk::raii::CommandPool& getCommandPoolHandle() const;
 		const vk::raii::PipelineCache& getGraphicsPipelineCacheHandle() const;
 	};
