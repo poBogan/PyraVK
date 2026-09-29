@@ -60,16 +60,6 @@ namespace pyra
 		destroySwapchain();
 		swapchain.emplace(Swapchain(renderDevice.value(), windowSurface.value(), requestedConfig));
 
-		for (const auto& gp : graphicsPipelines)
-		{
-			if (gp.first.colorAttachmentFormat != swapchain->getConfig().imageFormat)
-			{
-				GraphicsPipeline::Config newPipelineConfig = gp.first; 
-				newPipelineConfig.colorAttachmentFormat = swapchain->getConfig().imageFormat;
-				constructGraphicsPipeline(newPipelineConfig);
-			}
-		}
-
 		return swapchain->getConfig();
 	}
 
@@ -102,6 +92,12 @@ namespace pyra
 		pyra_assert(shaderEntries.find(config.vertexShaderEntry) != shaderEntries.end(), "No vertex shader entry named as \"{:}\" exists!", config.vertexShaderEntry.c_str());
 		pyra_assert(shaderEntries.find(config.fragmentShaderEntry) != shaderEntries.end(), "No fragment shader entry named as \"{:}\" exists!", config.fragmentShaderEntry.c_str());
 
+		if (config.colorAttachmentFormat == vk::Format::eUndefined)
+		{
+			spdlog::error("Cannot create graphics pipeline with image color attachment format vk::Format::eUndefined");
+			return;
+		}
+
 		if (graphicsPipelines.find(config) != graphicsPipelines.end())
 		{
 			spdlog::warn("A graphics pipeline with identical configuration already exists. Skipping graphics pipeline creation"); 
@@ -111,15 +107,6 @@ namespace pyra
 		else
 		{
 			graphicsPipelines.insert(std::pair(config, GraphicsPipeline(renderDevice.value(), *shaderEntries[config.vertexShaderEntry], *shaderEntries[config.fragmentShaderEntry], config)));
-		}
-
-		if (swapchain.has_value())
-		{
-			if (swapchain->getConfig().imageFormat != config.colorAttachmentFormat)
-			{
-				config.colorAttachmentFormat = swapchain->getConfig().imageFormat;
-				constructGraphicsPipeline(config);
-			}
 		}
 	}
 
@@ -185,6 +172,10 @@ namespace pyra
 		renderDevice->getLogicalDeviceHandle().resetFences(*framesInFlight->getCurrentFrameCommandBufferFence());
 
 		auto [result, imageIdx] = swapchain->getSwapchainHandle().acquireNextImage(UINT64_MAX, *framesInFlight->getCurrentFrameCommandBufferSemaphore());
+		if (result != vk::Result::eSuccess)
+		{
+			return;
+		}
 
 		const auto& commandBuffer = framesInFlight->getCurrentFrameCommandBuffer();
 
