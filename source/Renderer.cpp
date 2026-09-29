@@ -123,13 +123,13 @@ namespace pyra
 		}
 	}
 
-	void Renderer::constructFrames(Frames::Config config)
+	void Renderer::constructFramesInFlight(uint32_t framesInFlightCount)
 	{
 		pyra_assert(vulkanInstance.has_value(), "Cannot construct frames. No vulkan instance found!");
 		pyra_assert(windowSurface.has_value(), "Cannot construct frames. No surface found!");
 		pyra_assert(renderDevice.has_value(), "Cannot construct frames. No render device selected!");
 
-		frames.emplace(Frames(renderDevice.value(), config));
+		framesInFlight.emplace(FramesInFlight(renderDevice.value(), framesInFlightCount));
 	}
 
 	void transition_image_layout(
@@ -179,14 +179,14 @@ namespace pyra
 		pyra_assert(windowSurface.has_value(), "Cannot draw frame. No window surface found!");
 		pyra_assert(renderDevice.has_value(), "Cannot draw frame. No render device selected!");
 		pyra_assert(swapchain.has_value(), "Cannot draw frame. No swapchain found!");
-		pyra_assert(frames.has_value(), "Cannot draw frame. No frames are not constructed!");
+		pyra_assert(framesInFlight.has_value(), "Cannot draw frame. No frames are not constructed!");
 
-		renderDevice->getLogicalDeviceHandle().waitForFences(*frames->getCurrentFrameCommandBufferFence(), VK_TRUE, UINT64_MAX);
-		renderDevice->getLogicalDeviceHandle().resetFences(*frames->getCurrentFrameCommandBufferFence());
+		renderDevice->getLogicalDeviceHandle().waitForFences(*framesInFlight->getCurrentFrameCommandBufferFence(), VK_TRUE, UINT64_MAX);
+		renderDevice->getLogicalDeviceHandle().resetFences(*framesInFlight->getCurrentFrameCommandBufferFence());
 
-		auto [result, imageIdx] = swapchain->getSwapchainHandle().acquireNextImage(UINT64_MAX, *frames->getCurrentFrameCommandBufferSemaphore());
+		auto [result, imageIdx] = swapchain->getSwapchainHandle().acquireNextImage(UINT64_MAX, *framesInFlight->getCurrentFrameCommandBufferSemaphore());
 
-		const auto& commandBuffer = frames->getCurrentFrameCommandBuffer();
+		const auto& commandBuffer = framesInFlight->getCurrentFrameCommandBuffer();
 
 		commandBuffer.begin({});
 
@@ -253,9 +253,9 @@ namespace pyra
 
 		commandBuffer.end();
 
-		VkSemaphore wS = (VkSemaphore)*frames->getCurrentFrameCommandBufferSemaphore();
+		VkSemaphore wS = (VkSemaphore)*framesInFlight->getCurrentFrameCommandBufferSemaphore();
 		VkPipelineStageFlags waitDestination = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
-		VkCommandBuffer cB = (VkCommandBuffer)*frames->getCurrentFrameCommandBuffer();
+		VkCommandBuffer cB = (VkCommandBuffer)*framesInFlight->getCurrentFrameCommandBuffer();
 		VkSemaphore sS = (VkSemaphore)*swapchain->getImagePresentableSemaphores()[imageIdx];
 
 		VkSubmitInfo submitInfo{
@@ -270,7 +270,7 @@ namespace pyra
 			.pSignalSemaphores = &sS
 		};
 
-		renderDevice->getGraphicsQueueHandle().submit(vk::SubmitInfo(submitInfo), *frames->getCurrentFrameCommandBufferFence());
+		renderDevice->getGraphicsQueueHandle().submit(vk::SubmitInfo(submitInfo), *framesInFlight->getCurrentFrameCommandBufferFence());
 
 		VkSwapchainKHR sC = (VkSwapchainKHR)*swapchain->getSwapchainHandle();
 
@@ -286,7 +286,7 @@ namespace pyra
 		};
 
 		renderDevice->getGraphicsQueueHandle().presentKHR(vk::PresentInfoKHR(presentInfo));
-		frames->nextFrame();
+		framesInFlight->nextFrame();
 	}
 
 	void Renderer::destroyVulkanInstance()
@@ -306,7 +306,7 @@ namespace pyra
 		shaderEntries.clear(); 
 		graphicsPipelines.clear();
 		swapchain.reset();
-		frames.reset();
+		framesInFlight.reset();
 		renderDevice.reset();
 	}
 

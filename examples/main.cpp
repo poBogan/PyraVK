@@ -55,9 +55,7 @@ int main()
 		.frontFace = vk::FrontFace::eClockwise,
 	};
 	renderer.constructGraphicsPipeline(pipelineInfo);
-
-	pyra::Frames::Config framesConfig{ .concurrentFramesCount = 3 }; 
-	renderer.constructFrames(framesConfig);
+	renderer.constructFramesInFlight(3);
 
 	std::vector<pyra::Vertex> verticies{
 		{{0.f,1.f}, {1.f,1.f,0.f,1.f}},

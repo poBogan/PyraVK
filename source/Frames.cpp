@@ -3,14 +3,14 @@
 
 namespace pyra
 {
-	Frames::Frames(const Device& device, Frames::Config config) : config(config)
+	FramesInFlight::FramesInFlight(const Device& device,uint32_t framesInFlightCount) : framesInFlightCount(framesInFlightCount)
 	{
 		VkCommandBufferAllocateInfo commandBufferAllocateInfo{
 			.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO,
 			.pNext = NULL,
 			.commandPool = (VkCommandPool)*device.getCommandPoolHandle(),
 			.level = VK_COMMAND_BUFFER_LEVEL_PRIMARY,
-			.commandBufferCount = config.concurrentFramesCount
+			.commandBufferCount = framesInFlightCount
 		};
 
 		commandBuffers = vk::raii::CommandBuffers(device.getLogicalDeviceHandle(), commandBufferAllocateInfo);
@@ -27,7 +27,7 @@ namespace pyra
 			.flags = NULL
 		};
 
-		for (int i = 0;i < config.concurrentFramesCount;i++)
+		for (int i = 0;i < framesInFlightCount;i++)
 		{
 			commandBufferFences.push_back(vk::raii::Fence(device.getLogicalDeviceHandle(), fenceCreateInfo));
 			commandBufferSemaphores.push_back(vk::raii::Semaphore(device.getLogicalDeviceHandle(), semaphoreCreateInfo));
@@ -38,49 +38,50 @@ namespace pyra
 		commandBufferSemaphores.shrink_to_fit();
 	}
 
-	const vk::raii::CommandBuffers& Frames::getCommandBuffers() const
+	const vk::raii::CommandBuffers& FramesInFlight::getCommandBuffers() const
 	{
 		return commandBuffers;
 	}
 
-	const std::vector<vk::raii::Fence>& Frames::getCommandBufferFences() const
+	const std::vector<vk::raii::Fence>& FramesInFlight::getCommandBufferFences() const
 	{
 		return commandBufferFences;
 	}
 
-	const std::vector<vk::raii::Semaphore>& Frames::getCommandBufferSemaphores() const
+	const std::vector<vk::raii::Semaphore>& FramesInFlight::getCommandBufferSemaphores() const
 	{
 		return commandBufferSemaphores;
 	}
-	const Frames::Config& Frames::getConfig() const
-	{
-		return config;
-	}
 
-	const uint32_t Frames::getCurrentFrameIndex() const
+	const uint32_t FramesInFlight::getCurrentFrameIndex() const
 	{
 		return currentFrame;
 	}
 
-	const vk::raii::CommandBuffer& Frames::getCurrentFrameCommandBuffer() const
+	const uint32_t FramesInFlight::getFramesInFlightCount() const
+	{
+		return framesInFlightCount;
+	}
+
+	const vk::raii::CommandBuffer& FramesInFlight::getCurrentFrameCommandBuffer() const
 	{
 		return commandBuffers[getCurrentFrameIndex()];
 	}
 
-	const vk::raii::Fence& Frames::getCurrentFrameCommandBufferFence() const
+	const vk::raii::Fence& FramesInFlight::getCurrentFrameCommandBufferFence() const
 	{
 		return commandBufferFences[getCurrentFrameIndex()];
 	}
 
-	const vk::raii::Semaphore& Frames::getCurrentFrameCommandBufferSemaphore() const
+	const vk::raii::Semaphore& FramesInFlight::getCurrentFrameCommandBufferSemaphore() const
 	{
 		return commandBufferSemaphores[getCurrentFrameIndex()];
 	}
 
-	void Frames::nextFrame()
+	void FramesInFlight::nextFrame()
 	{
 		currentFrame++;
-		currentFrame %= config.concurrentFramesCount;
+		currentFrame %= framesInFlightCount;
 	}
 
 

@@ -27,7 +27,7 @@ namespace pyra
 		std::optional<Surface> windowSurface; 
 		std::optional<Device> renderDevice; 
 		std::optional<Swapchain> swapchain;
-		std::optional<Frames> frames;
+		std::optional<FramesInFlight> framesInFlight;
 		std::unordered_map<std::string, std::shared_ptr<Shader>> shaderEntries;
 		std::unordered_map<GraphicsPipeline::Config,GraphicsPipeline,GraphicsPipeline::Hasher> graphicsPipelines;
 	public:
@@ -43,7 +43,7 @@ namespace pyra
 		Swapchain::Config constructSwapchain(Swapchain::Config requestedConfig);
 		void constructShaders(Shader::Config config);
 		void constructGraphicsPipeline(GraphicsPipeline::Config config);
-		void constructFrames(Frames::Config config);
+		void constructFramesInFlight(uint32_t framesInFlightCount);
 
 		void Draw(RenderTarget renderingTarget, Viewport viewport, Scissor scissor,glm::vec4 clearColor = {0.f, 0.f, 0.f, 1.f});
 
