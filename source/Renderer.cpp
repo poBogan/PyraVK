@@ -224,9 +224,10 @@ namespace pyra
 		commandBuffer.beginRendering(renderingInfo); 
 		commandBuffer.bindPipeline(vk::PipelineBindPoint::eGraphics, graphicsPipelines.at(renderTarget.graphicsPipeline).getGraphicsPipelineHandle());
 		commandBuffer.bindVertexBuffers(0, *renderTarget.vertexBuffer->getVertexBufferHandle(), { 0 });
+		commandBuffer.bindIndexBuffer(*renderTarget.indexBuffer->getIndexBufferHandle(), 0, vk::IndexType::eUint32);
 		commandBuffer.setViewport(0, vk::Viewport(viewport.offset.x, viewport.offset.y, viewport.extent.x, viewport.extent.y, 0.f, 1.f));
 		commandBuffer.setScissor(0, vk::Rect2D(VkRect2D{ (int32_t)scissor.offset.x, (int32_t)scissor.offset.y, (uint32_t)scissor.extent.x, (uint32_t)scissor.extent.y }));
-		commandBuffer.draw(renderTarget.vertexBuffer->getVertexCount(), 1, 0, 0);
+		commandBuffer.drawIndexed(renderTarget.indexBuffer->getIndiciesCount(),1,0,0,0);
 		commandBuffer.endRendering();
 
 		transition_image_layout(

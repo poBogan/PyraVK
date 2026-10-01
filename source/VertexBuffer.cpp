@@ -3,10 +3,10 @@
 
 namespace pyra
 {
-	VertexBuffer::VertexBuffer(const Device& device,const std::vector<Vertex> verticies) : vertexCount(verticies.size())
+	VertexBuffer::VertexBuffer(const Device& device,const std::vector<Vertex>& verticies) : vertexCount(verticies.size())
 	{
 		vk::BufferCreateInfo bufferCreateInfo;
-		bufferCreateInfo.size = static_cast<uint32_t>(verticies.size() * sizeof(Vertex));
+		bufferCreateInfo.size = static_cast<vk::DeviceSize>(verticies.size() * sizeof(Vertex));
 		bufferCreateInfo.usage = vk::BufferUsageFlagBits::eTransferSrc;
 		bufferCreateInfo.sharingMode = vk::SharingMode::eExclusive;
 		bufferCreateInfo.queueFamilyIndexCount = 1;
@@ -15,16 +15,14 @@ namespace pyra
 		const auto& allocator = device.getDeviceMemoryAllocator();
 
 		vma::AllocationCreateInfo allocationCreateInfo; 
+		allocationCreateInfo.flags = vma::AllocationCreateFlagBits::eHostAccessSequentialWrite;
 		allocationCreateInfo.usage = vma::MemoryUsage::eAuto; 
 		allocationCreateInfo.requiredFlags = vk::MemoryPropertyFlagBits::eHostVisible | vk::MemoryPropertyFlagBits::eHostCoherent;
 
 		vma::AllocationInfo allocationInfo;
+		vma::raii::Buffer stageBuffer = allocator.createBuffer(bufferCreateInfo, allocationCreateInfo, allocationInfo);
 
-		vk::raii::Buffer stageBuffer = allocator.createBuffer(bufferCreateInfo, allocationCreateInfo, allocationInfo);
-		void* mapped = nullptr;
-		vkMapMemory((VkDevice)*device.getLogicalDeviceHandle(), allocationInfo.deviceMemory, allocationInfo.offset, allocationInfo.size,0, &mapped);
-		memcpy(mapped, verticies.data(), verticies.size() * sizeof(Vertex));
-		vkUnmapMemory((VkDevice)*device.getLogicalDeviceHandle(), allocationInfo.deviceMemory);
+		stageBuffer.getAllocation().copyFromMemory((void*)verticies.data(),0,verticies.size() * sizeof(Vertex));
 
 		bufferCreateInfo.usage = vk::BufferUsageFlagBits::eVertexBuffer | vk::BufferUsageFlagBits::eTransferDst; 
 		allocationCreateInfo.requiredFlags = vk::MemoryPropertyFlagBits::eDeviceLocal;
@@ -39,7 +37,7 @@ namespace pyra
 		auto cbVector = vk::raii::CommandBuffers(device.getLogicalDeviceHandle(), commandBufferAllocateInfo);
 		vk::raii::CommandBuffer copyCommandBuffer = std::move(cbVector.front());
 		copyCommandBuffer.begin(vk::CommandBufferBeginInfo(vk::CommandBufferUsageFlagBits::eOneTimeSubmit));
-		copyCommandBuffer.copyBuffer(*stageBuffer, *vertexBuffer, vk::BufferCopy(0, 0, static_cast<uint32_t>(verticies.size() * sizeof(Vertex))));
+		copyCommandBuffer.copyBuffer(*stageBuffer, *vertexBuffer, vk::BufferCopy(0, 0, static_cast<vk::DeviceSize>(verticies.size() * sizeof(Vertex))));
 		copyCommandBuffer.end(); 
 
 		vk::CommandBuffer cmdBuf = *copyCommandBuffer;

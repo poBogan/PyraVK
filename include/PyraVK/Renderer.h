@@ -8,6 +8,7 @@
 #include <PyraVK/GraphicsPipeline.h>
 #include <PyraVK/Frames.h>
 #include <PyraVK/VertexBuffer.h>
+#include <PyraVK/IndexBuffer.h>
 
 namespace pyra
 {
@@ -15,6 +16,7 @@ namespace pyra
 	struct RenderTarget
 	{
 		std::shared_ptr<VertexBuffer> vertexBuffer;
+		std::shared_ptr<IndexBuffer> indexBuffer;
 		GraphicsPipeline::Config graphicsPipeline;
 	};
 
