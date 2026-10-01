@@ -106,7 +106,7 @@ namespace pyra
 
 		else
 		{
-			graphicsPipelines.insert(std::pair(config, GraphicsPipeline(renderDevice.value(), *shaderEntries[config.vertexShaderEntry], *shaderEntries[config.fragmentShaderEntry], config)));
+			graphicsPipelines.insert(std::pair(config, GraphicsPipeline(*renderDevice, *shaderEntries[config.vertexShaderEntry], *shaderEntries[config.fragmentShaderEntry], config)));
 		}
 	}
 
@@ -225,7 +225,7 @@ namespace pyra
 		commandBuffer.bindPipeline(vk::PipelineBindPoint::eGraphics, graphicsPipelines.at(renderTarget.graphicsPipeline).getGraphicsPipelineHandle());
 		commandBuffer.bindVertexBuffers(0, *renderTarget.vertexBuffer->getVertexBufferHandle(), { 0 });
 		commandBuffer.setViewport(0, vk::Viewport(viewport.offset.x, viewport.offset.y, viewport.extent.x, viewport.extent.y, 0.f, 1.f));
-		commandBuffer.setScissor(0, vk::Rect2D(VkRect2D{ (int32_t)viewport.offset.x, (int32_t)viewport.offset.y, (uint32_t)viewport.extent.x, (uint32_t)viewport.extent.y }));
+		commandBuffer.setScissor(0, vk::Rect2D(VkRect2D{ (int32_t)scissor.offset.x, (int32_t)scissor.offset.y, (uint32_t)scissor.extent.x, (uint32_t)scissor.extent.y }));
 		commandBuffer.draw(renderTarget.vertexBuffer->getVertexCount(), 1, 0, 0);
 		commandBuffer.endRendering();
 

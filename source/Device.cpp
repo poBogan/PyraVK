@@ -1,4 +1,5 @@
 #include <PyraVK/Device.h> 
+#include <PyraVK/Renderer.h>
 
 namespace pyra
 {
@@ -130,6 +131,11 @@ namespace pyra
 		};
 
 		graphicsPipelineCache = vk::raii::PipelineCache(logicalDeviceHandle, graphicsPipelineCacheInfo);
+
+		const auto& instance = Renderer::getRenderer().getVulkanInstance()->getVulkanInstanceHandle();
+		vma::AllocatorCreateInfo allocatorCreateInfo; 
+		allocatorCreateInfo.physicalDevice = config.physicalDevice;
+		deviceMemoryAllocator = vma::raii::Allocator(instance, logicalDeviceHandle, allocatorCreateInfo); 
 	}
 
 	const Device::Config& Device::getConfig() const
@@ -155,5 +161,9 @@ namespace pyra
 	const vk::raii::PipelineCache& Device::getGraphicsPipelineCacheHandle() const
 	{
 		return graphicsPipelineCache;
+	}
+	const vma::raii::Allocator& Device::getDeviceMemoryAllocator() const
+	{
+		return deviceMemoryAllocator;
 	}
 }

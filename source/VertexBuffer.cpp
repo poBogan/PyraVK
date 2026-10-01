@@ -5,62 +5,58 @@ namespace pyra
 {
 	VertexBuffer::VertexBuffer(const Device& device,const std::vector<Vertex> verticies) : vertexCount(verticies.size())
 	{
-		VkBufferCreateInfo bufferCreateInfo{
-			.sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO,
-			.pNext = NULL,
-			.flags = NULL,
-			.size = static_cast<uint32_t>(verticies.size() * sizeof(Vertex)),
-			.usage = VK_BUFFER_USAGE_VERTEX_BUFFER_BIT,
-			.sharingMode = VK_SHARING_MODE_EXCLUSIVE,
-			.queueFamilyIndexCount = 1,
-			.pQueueFamilyIndices = &device.getConfig().graphicsQueueFamilyIndex
-		};
+		vk::BufferCreateInfo bufferCreateInfo;
+		bufferCreateInfo.size = static_cast<uint32_t>(verticies.size() * sizeof(Vertex));
+		bufferCreateInfo.usage = vk::BufferUsageFlagBits::eTransferSrc;
+		bufferCreateInfo.sharingMode = vk::SharingMode::eExclusive;
+		bufferCreateInfo.queueFamilyIndexCount = 1;
+		bufferCreateInfo.pQueueFamilyIndices = &device.getConfig().graphicsQueueFamilyIndex;
+		
+		const auto& allocator = device.getDeviceMemoryAllocator();
 
-		vertexBuffer = vk::raii::Buffer(device.getLogicalDeviceHandle(),vk::BufferCreateInfo(bufferCreateInfo));
+		vma::AllocationCreateInfo allocationCreateInfo; 
+		allocationCreateInfo.usage = vma::MemoryUsage::eAuto; 
+		allocationCreateInfo.requiredFlags = vk::MemoryPropertyFlagBits::eHostVisible | vk::MemoryPropertyFlagBits::eHostCoherent;
 
-		vk::PhysicalDeviceMemoryProperties deviceMemoryProperties = device.getConfig().physicalDevice.getMemoryProperties();
-		vk::MemoryRequirements bufferMemoryRequirements = vertexBuffer.getMemoryRequirements();
+		vma::AllocationInfo allocationInfo;
 
-		uint32_t memoryTypeIndex = deviceMemoryProperties.memoryTypeCount;
-
-		for (int i = 0;i < deviceMemoryProperties.memoryTypeCount;i++)
-		{
-			if ((1 << i) & bufferMemoryRequirements.memoryTypeBits)
-			{
-				static uint32_t requirementsBitfield = VK_MEMORY_PROPERTY_HOST_COHERENT_BIT | VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT;
-				if (((uint32_t)deviceMemoryProperties.memoryTypes[i].propertyFlags & requirementsBitfield) == requirementsBitfield)
-				{
-					memoryTypeIndex = i; 
-					break;
-				}
-			}
-		}
-
-		pyra_assert(memoryTypeIndex != deviceMemoryProperties.memoryTypeCount, "No available memory type found!");
-
-		VkMemoryAllocateInfo memoryAllocateInfo{
-			.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO,
-			.pNext = NULL,
-			.allocationSize = bufferMemoryRequirements.size,
-			.memoryTypeIndex = memoryTypeIndex
-		};
-
-		vertexBufferMemory = vk::raii::DeviceMemory(device.getLogicalDeviceHandle(), memoryAllocateInfo);
-		vertexBuffer.bindMemory(vertexBufferMemory, 0);
-
-		void* mapped = vertexBufferMemory.mapMemory(0, bufferMemoryRequirements.size);
+		vk::raii::Buffer stageBuffer = allocator.createBuffer(bufferCreateInfo, allocationCreateInfo, allocationInfo);
+		void* mapped = nullptr;
+		vkMapMemory((VkDevice)*device.getLogicalDeviceHandle(), allocationInfo.deviceMemory, allocationInfo.offset, allocationInfo.size,0, &mapped);
 		memcpy(mapped, verticies.data(), verticies.size() * sizeof(Vertex));
-		vertexBufferMemory.unmapMemory(); 
+		vkUnmapMemory((VkDevice)*device.getLogicalDeviceHandle(), allocationInfo.deviceMemory);
+
+		bufferCreateInfo.usage = vk::BufferUsageFlagBits::eVertexBuffer | vk::BufferUsageFlagBits::eTransferDst; 
+		allocationCreateInfo.requiredFlags = vk::MemoryPropertyFlagBits::eDeviceLocal;
+
+		vertexBuffer = allocator.createBuffer(bufferCreateInfo, allocationCreateInfo, allocationInfo);
+
+		vk::CommandBufferAllocateInfo commandBufferAllocateInfo; 
+		commandBufferAllocateInfo.commandBufferCount = 1; 
+		commandBufferAllocateInfo.commandPool = *device.getCommandPoolHandle();
+		commandBufferAllocateInfo.level = vk::CommandBufferLevel::ePrimary; 
+
+		auto cbVector = vk::raii::CommandBuffers(device.getLogicalDeviceHandle(), commandBufferAllocateInfo);
+		vk::raii::CommandBuffer copyCommandBuffer = std::move(cbVector.front());
+		copyCommandBuffer.begin(vk::CommandBufferBeginInfo(vk::CommandBufferUsageFlagBits::eOneTimeSubmit));
+		copyCommandBuffer.copyBuffer(*stageBuffer, *vertexBuffer, vk::BufferCopy(0, 0, static_cast<uint32_t>(verticies.size() * sizeof(Vertex))));
+		copyCommandBuffer.end(); 
+
+		vk::CommandBuffer cmdBuf = *copyCommandBuffer;
+		vk::SubmitInfo submitInfo; 
+		submitInfo.commandBufferCount = 1; 
+		submitInfo.pCommandBuffers = &cmdBuf;
+
+		const auto& graphicsQueue = device.getGraphicsQueueHandle();
+		graphicsQueue.submit(submitInfo);
+		device.getLogicalDeviceHandle().waitIdle();
 	}
 
 	const vk::raii::Buffer& VertexBuffer::getVertexBufferHandle() const
 	{
 		return vertexBuffer;
 	}
-	const vk::raii::DeviceMemory& VertexBuffer::getDeviceMemoryHandle() const
-	{
-		return vertexBufferMemory;
-	}
+
 	const uint32_t VertexBuffer::getVertexCount() const
 	{
 		return vertexCount;

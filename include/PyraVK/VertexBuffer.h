@@ -36,12 +36,10 @@ namespace pyra
 	{
 	private:
 		vk::raii::Buffer vertexBuffer = nullptr;
-		vk::raii::DeviceMemory vertexBufferMemory = nullptr;
 		const uint32_t vertexCount;
 	public:
 		VertexBuffer(const Device& device,const std::vector<Vertex> verticies);
 		const vk::raii::Buffer& getVertexBufferHandle() const; 
-		const vk::raii::DeviceMemory& getDeviceMemoryHandle() const;
 		const uint32_t getVertexCount() const;
 	};
 
