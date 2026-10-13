@@ -1,36 +1,32 @@
 #pragma once
-#include <PyraVK/Definitions.h>
-#include <PyraVK/Surface.h>
-#include <vk_mem_alloc_raii.hpp>
+#include <PyraVK/Object.h>
 
 namespace pyra
 {
 
-	class Device : public Base
+	inline const std::vector<const char*> requiredDeviceExtensions{ vk::KHRSwapchainExtensionName, vk::EXTMemoryBudgetExtensionName };
+
+	class Device : public Object
 	{
 	public : 
-		struct Config
+		struct Config : Object::Config
 		{
-			const vk::raii::PhysicalDevice physicalDevice;
-			const uint32_t graphicsQueueFamilyIndex;
+			vk::raii::PhysicalDevice physicalDevice;
+			uint32_t queueFamilyIndex;
 		};
 	private : 
-		vk::raii::Device logicalDeviceHandle = nullptr; 
-		vk::raii::Queue graphicsQueueHandle = nullptr;
-		vk::raii::CommandPool commandPoolHandle = nullptr;
-		vk::raii::PipelineCache graphicsPipelineCache = nullptr;
-		vma::raii::Allocator deviceMemoryAllocator = nullptr;
-		const Device::Config config;
+		vk::raii::PhysicalDevice physicalDevice = nullptr; 
+		vk::raii::Device logicalDevice = nullptr; 
+		vk::raii::Queue graphicsQueue = nullptr;
+		uint32_t queueFamilyIndex;
 	public : 
-		static std::vector<Device::Config> getSuitableDevices(const VulkanInstance& instance,const Surface& surface);
+		static const std::vector<Device::Config> getSuitableDevices(const class VulkanInstance& instance, const class Surface& surface);
 		Device(const Device::Config config);
 
-		const Device::Config& getConfig() const;
-		const vk::raii::Device& getLogicalDeviceHandle() const;
-		const vk::raii::Queue& getGraphicsQueueHandle() const;
-		const vk::raii::CommandPool& getCommandPoolHandle() const;
-		const vk::raii::PipelineCache& getGraphicsPipelineCacheHandle() const;
-		const vma::raii::Allocator& getDeviceMemoryAllocator() const;
+		const vk::raii::PhysicalDevice& getPhysicalDevice() const; 
+		const vk::raii::Device& getLogicalDevice() const;
+		const vk::raii::Queue& getGraphicsQueue() const;
+		const uint32_t& getQueueFamilyIndex() const;
 	};
 
 }

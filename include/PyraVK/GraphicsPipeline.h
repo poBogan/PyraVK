@@ -1,9 +1,5 @@
 #pragma once
-#include <PyraVK/Definitions.h>
-#include <PyraVK/Device.h>
-#include <PyraVK/Swapchain.h>
-#include <PyraVK/Shader.h>
-
+#include <PyraVK/Object.h>
 
 
 namespace pyra
@@ -20,10 +16,10 @@ namespace pyra
 		glm::vec2 extent;
 	};
 
-	class GraphicsPipeline : public Base
+	class GraphicsPipeline : public Object
 	{
 	public : 	
-		struct Config
+		struct Config : Object::Config
 		{
 			std::string vertexShaderEntry;
 			std::string fragmentShaderEntry;
@@ -31,35 +27,15 @@ namespace pyra
 			vk::PrimitiveTopology primitiveTopology;
 			vk::CullModeFlagBits faceCullingMode; 
 			vk::FrontFace frontFace; 
-
-			bool operator==(const GraphicsPipeline::Config& other) const
-			{
-				bool is_equal =
-					this->vertexShaderEntry == other.vertexShaderEntry &&
-					this->fragmentShaderEntry == other.fragmentShaderEntry &&
-					this->colorAttachmentFormat == other.colorAttachmentFormat &&
-					this->primitiveTopology == other.primitiveTopology &&
-					this->faceCullingMode == other.faceCullingMode &&
-					this->frontFace == other.frontFace;
-				return is_equal;
-			};
-		};
-
-		struct Hasher
-		{
-			std::size_t operator()(const GraphicsPipeline::Config& c) const
-			{
-				return chainHash(c.vertexShaderEntry, c.fragmentShaderEntry,c.colorAttachmentFormat, c.primitiveTopology, c.faceCullingMode, c.frontFace);
-			}
 		};
 	private : 
-		vk::raii::Pipeline handle = nullptr;
+		vk::raii::Pipeline graphicsPipeline = nullptr;
 		vk::raii::PipelineLayout pipelineLayout = nullptr; 
 		const GraphicsPipeline::Config config; 
 	public : 
-		GraphicsPipeline(const Device& device,const Shader& vertexShaderModule,const Shader& fragmentShaderModule,const GraphicsPipeline::Config& config);
+		GraphicsPipeline(const GraphicsPipeline::Config config, const class Device& device, const class Shader& vertexShaderModule, const class Shader& fragmentShaderModule,const vk::raii::PipelineCache& pipelineCache = nullptr);
 		const GraphicsPipeline::Config& getConfig() const;
-		const vk::raii::Pipeline& getGraphicsPipelineHandle() const;
+		const vk::raii::Pipeline& getGraphicsPipeline() const;
 	};
 
 }

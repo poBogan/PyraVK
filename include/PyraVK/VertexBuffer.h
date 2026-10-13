@@ -1,6 +1,5 @@
 #pragma once 
-#include <PyraVK/Definitions.h>
-#include <PyraVK/Device.h>
+#include <PyraVK/Object.h>
 
 namespace pyra
 {
@@ -32,15 +31,15 @@ namespace pyra
 		}
 	};
 
-	class VertexBuffer : public Base
+	class VertexBuffer : public Object
 	{
 	private:
-		vma::raii::Buffer vertexBuffer = nullptr;
-		const uint32_t vertexCount;
+		vma::raii::Buffer vertexBuffer;
+		uint32_t vertexCount;
 	public:
-		VertexBuffer(const Device& device,const std::vector<Vertex>& verticies);
-		const vk::raii::Buffer& getVertexBufferHandle() const; 
-		const uint32_t getVertexCount() const;
+		VertexBuffer(vma::raii::Buffer&& buffer, const uint32_t vertexCount);
+		const vma::raii::Buffer& getVertexBuffer() const; 
+		const uint32_t& getVertexCount() const;
 	};
 
 }

@@ -1,15 +1,13 @@
 #pragma once
-#include <PyraVK/Definitions.h>
-#include <PyraVK/Device.h>
-#include <PyraVK/Surface.h>
+#include <PyraVK/Object.h>
 
 namespace pyra
 {
 
-	class Swapchain : public Base
+	class Swapchain : public Object
 	{
 	public : 
-		struct Config
+		struct Config : Object::Config
 		{
 			vk::Extent2D imageExtent;
 			uint32_t imageCount;
@@ -18,18 +16,18 @@ namespace pyra
 			vk::PresentModeKHR presentMode;
 		};
 	private:
-		vk::raii::SwapchainKHR handle = nullptr;
+		Swapchain::Config config;
+		vk::raii::SwapchainKHR swapchain = nullptr;
 		std::vector<vk::Image> images;
 		std::vector<vk::raii::ImageView> imageViews;
 		std::vector<vk::raii::Semaphore> imagePresentableSemaphores;
-		Swapchain::Config config;
 	public : 
-		Swapchain(const Device& device,const Surface& surface,const Swapchain::Config config);
+		Swapchain(const Swapchain::Config config, const class Device& device,const class Surface& surface);
 
-		const Swapchain::Config& getConfig() const;
-		const vk::raii::SwapchainKHR& getSwapchainHandle() const;
+		const vk::raii::SwapchainKHR& getSwapchain() const;
 		const std::vector<vk::Image>& getImages() const; 
 		const std::vector<vk::raii::ImageView>& getImageViews() const;
 		const std::vector<vk::raii::Semaphore>& getImagePresentableSemaphores() const;
+		const Swapchain::Config& getConfig() const;
 	};
 }

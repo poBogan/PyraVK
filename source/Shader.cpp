@@ -1,4 +1,5 @@
 #include <PyraVK/Shader.h>
+#include <PyraVK/Device.h>
 #include <fstream>
 
 namespace pyra
@@ -21,7 +22,7 @@ namespace pyra
 		return buffer;
 	}
 
-	pyra::Shader::Shader(const Device& device, const Shader::Config config) : config(config)
+	pyra::Shader::Shader(const Shader::Config config, const Device& device) : Object(config, Object::Type::SHADER_MODULE), config(config)
 	{
 		std::vector<char> moduleCode = readShader(config.file);
 		moduleCode.shrink_to_fit();
@@ -33,7 +34,7 @@ namespace pyra
 			.codeSize = (uint32_t)moduleCode.size(),
 			.pCode = reinterpret_cast<uint32_t*>(moduleCode.data())
 		};
-		shaderModuleHandle = vk::raii::ShaderModule(device.getLogicalDeviceHandle(), shaderModuleInfo);
+		shaderModule = vk::raii::ShaderModule(device.getLogicalDevice(), shaderModuleInfo);
 	}
 
 	const Shader::Config& Shader::getConfig() const
@@ -41,9 +42,9 @@ namespace pyra
 		return config;
 	}
 
-	const vk::raii::ShaderModule& Shader::getShaderModuleHandle() const
+	const vk::raii::ShaderModule& Shader::getShaderModule() const
 	{
-		return shaderModuleHandle;
+		return shaderModule;
 	}
 
 }

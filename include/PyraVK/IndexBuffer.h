@@ -1,19 +1,18 @@
 #pragma once 
-#include <PyraVK/Definitions.h>
-#include <PyraVK/Device.h>
+#include <PyraVK/Object.h>
 
 namespace pyra
 {
 
-	class IndexBuffer : public Base
+	class IndexBuffer : public Object
 	{
 	private : 
-		vma::raii::Buffer indexBuffer = nullptr; 
-		uint32_t indiciesCount = 0; 
+		const vma::raii::Buffer indexBuffer; 
+		const uint32_t indiciesCount = 0; 
 	public : 
-		IndexBuffer(const Device& device, std::vector<uint32_t>& indicies);
-		const vk::raii::Buffer& getIndexBufferHandle() const; 
-		uint32_t getIndiciesCount() const;
+		IndexBuffer(vma::raii::Buffer&& indexBuffer, uint32_t indiciesCount);
+		const vma::raii::Buffer& getIndexBuffer() const; 
+		const uint32_t& getIndiciesCount() const;
 	};
 
 }

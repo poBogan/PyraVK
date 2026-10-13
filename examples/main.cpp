@@ -22,11 +22,11 @@ int main()
 	renderer.constructVulkanInstance(vulkanInstanceInfo);
 
 	pyra::Surface::Config windowSurfaceInfo;
-	glfwCreateWindowSurface(*renderer.getVulkanInstance().value().getVulkanInstanceHandle(), window, nullptr, &windowSurfaceInfo.surface);
+	glfwCreateWindowSurface(*renderer.getVulkanInstance().getInstance(), window, nullptr, &windowSurfaceInfo.surface);
 	renderer.constructWindowSurface(windowSurfaceInfo);
 
-	std::vector<pyra::Device::Config> deviceConfigs = renderer.getSuitableRenderDevices();
-	renderer.selectRenderDevice(deviceConfigs.front());
+	std::vector<pyra::Device::Config> deviceConfigs = renderer.getSuitableDevices();
+	renderer.selectDevice(deviceConfigs.front());
 
 	int width, height;
 	glfwGetFramebufferSize(window, &width, &height);
@@ -38,6 +38,7 @@ int main()
 		.presentMode = vk::PresentModeKHR::eMailbox
 	};
 	swapchainInfo = renderer.constructSwapchain(swapchainInfo);
+	renderer.constructConcurrentFrames(swapchainInfo.imageCount - 1);
 
 	pyra::Shader::Config shaderInfo{
 		.file = "pyra_shader.spirv",
@@ -54,25 +55,21 @@ int main()
 		.faceCullingMode = vk::CullModeFlagBits::eBack,
 		.frontFace = vk::FrontFace::eClockwise,
 	};
-	renderer.constructGraphicsPipeline(pipelineInfo);
-	renderer.constructFramesInFlight(3);
-
+	pyra::ResourceID pipelineID = renderer.constructGraphicsPipeline(pipelineInfo);
+	
 	std::vector<pyra::Vertex> verticies{
 		{{0.f,1.f}, {1.f,1.f,0.f,1.f}},
 		{{1.f,0.f}, {1.f,0.f,0.f,1.f}},
 		{{1.f,1.f}, {1.f,0.f,0.f,1.f}},
-	}; 
+	};
 
-	auto vertexBuffer = std::make_shared<pyra::VertexBuffer>(renderer.getRenderDevice().value(), verticies);
-
+	pyra::ResourceID bufferID = renderer.constructVertexBuffer(verticies);
 
 	while (!glfwWindowShouldClose(window))
 	{
 		glfwPollEvents();
-		renderer.Draw({ vertexBuffer,pipelineInfo },{{0,0}, {width,height}}, {{0,0}, {width,height}});
+		renderer.Draw({pipelineID, bufferID}, {0.f, 1.f, 0.f, 1.f});
 	}
-
-	renderer.getRenderDevice()->getLogicalDeviceHandle().waitIdle();
 
 	glfwDestroyWindow(window); 
 	glfwTerminate();

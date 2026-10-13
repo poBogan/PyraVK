@@ -1,65 +1,134 @@
 #pragma once
-#include <PyraVK/Definitions.h>
 #include <PyraVK/VulkanInstance.h>
 #include <PyraVK/Surface.h>
 #include <PyraVK/Device.h>
 #include <PyraVK/Swapchain.h>
 #include <PyraVk/Shader.h>
 #include <PyraVK/GraphicsPipeline.h>
-#include <PyraVK/Frames.h>
 #include <PyraVK/VertexBuffer.h>
 #include <PyraVK/IndexBuffer.h>
 
 namespace pyra
 {
+	struct Frame
+	{
+		vk::raii::CommandBuffer commandBuffer;
+		vk::raii::Fence commandBufferReadyFence;
+		vk::raii::Semaphore commandBufferImagePaintableSemaphore;
+	};
+
+	struct ResourceID
+	{
+		uint32_t generation;
+		uint32_t index;
+	};
+
+	template<class T> struct Slot
+	{
+		std::optional<T> object; 
+		uint32_t generation = 1;
+
+		Slot<T>() noexcept = default;
+		~Slot<T>() noexcept = default;
+
+		Slot(const Slot<T>&) = delete;
+		const Slot<T>& operator=(const Slot<T>&) = delete; 
+
+		Slot(Slot<T>&&) noexcept = default; 
+		Slot<T>& operator=(Slot<T>&&) noexcept = default;
+	};
 
 	struct RenderTarget
 	{
-		std::shared_ptr<VertexBuffer> vertexBuffer;
-		std::shared_ptr<IndexBuffer> indexBuffer;
-		GraphicsPipeline::Config graphicsPipeline;
+		ResourceID graphics_pipeline; 
+		ResourceID vertex_buffer; 
+		
 	};
 
-	class Renderer : public Base
+	class Renderer
 	{
 	private:
 		static std::optional<Renderer> singletonRenderer;
-	private : 
+	private:
 		std::optional<VulkanInstance> vulkanInstance;
-		std::optional<Surface> windowSurface; 
-		std::optional<Device> renderDevice; 
+		std::optional<Surface> windowSurface;
+		std::optional<Device> renderDevice;
 		std::optional<Swapchain> swapchain;
-		std::optional<FramesInFlight> framesInFlight;
+
+		std::optional<vk::raii::CommandPool> frameCommandPool;
+		uint32_t currentFrameIdx = 0;
+		uint32_t concurrentFrameCount = 0;
+		std::vector<Frame> concurrentFrames;
+
 		std::unordered_map<std::string, std::shared_ptr<Shader>> shaderEntries;
-		std::unordered_map<GraphicsPipeline::Config,GraphicsPipeline,GraphicsPipeline::Hasher> graphicsPipelines;
+
+		std::optional<vk::raii::PipelineCache> graphicsPipelineCache;
+		std::queue<uint32_t> emptyGraphicsPipelinePoolSlots;
+		std::vector<Slot<GraphicsPipeline>> graphicsPipelinePool;
+
+		std::optional<vma::raii::Allocator> memoryAllocator;
+		std::optional<vk::raii::CommandPool> copy_CommandPool;
+		std::optional<vk::raii::CommandBuffer> copy_CommandBuffer;
+
+		std::queue<uint32_t> emptyVertexBufferPoolSlots;
+		std::vector<Slot<VertexBuffer>> vertexBufferPool;
+
+		std::queue<uint32_t> emptyIndexBufferPoolSlots;
+		std::vector<Slot<IndexBuffer>> indexBufferPool;
 	public:
-		static void createRenderer();
+		Renderer() = default;
+		Renderer(const Renderer&) = delete; 
+		Renderer(Renderer&&) = default;
+		~Renderer();
+
+		Renderer& operator=(const Renderer&) = delete; 
+		Renderer& operator=(Renderer&&) = default;
+
+		static void createRenderer(); 
+		static bool rendererExists();
 		static Renderer& getRenderer();
 
-		void constructVulkanInstance(VulkanInstance::Config config);
-		void constructWindowSurface(Surface::Config config);
+		void constructVulkanInstance(VulkanInstance::Config config); 
+		bool vulkanInstanceExists() const;
+		const VulkanInstance& getVulkanInstance() const;
+		void destroyVulkanInstance();
 
-		std::vector<Device::Config> getSuitableRenderDevices();
-		void selectRenderDevice(Device::Config config);
+		void constructWindowSurface(Surface::Config config);
+		bool windowSurfaceExists() const;
+		const Surface& getWindowSurface() const;
+		void destroyWindowSurface();
+
+		std::vector<Device::Config> getSuitableDevices();
+		void selectDevice(Device::Config config);
+		bool deviceSelected() const;
+		const Device& getDevice() const;
+		void unselectDevice();
 
 		Swapchain::Config constructSwapchain(Swapchain::Config requestedConfig);
+		bool swapchainExists() const;
+		const Swapchain& getSwapchain() const;
+		void destroySwapchain();
+
+		void constructConcurrentFrames(uint32_t frameCount); 
+		uint32_t concurrentFramesCount() const;
+		void destroyConcurrentFrames();
+
 		void constructShaders(Shader::Config config);
-		void constructGraphicsPipeline(GraphicsPipeline::Config config);
-		void constructFramesInFlight(uint32_t framesInFlightCount);
+		bool shaderEntryExists(std::string entryName) const;
+		void destroyAllShaders();
 
-		void Draw(RenderTarget renderingTarget, Viewport viewport, Scissor scissor,glm::vec4 clearColor);
+		ResourceID constructGraphicsPipeline(GraphicsPipeline::Config config);
+		bool graphicsPipelineExists(ResourceID id) const;
+		void destroyGraphicsPipeline(ResourceID id); 
+		void destroyAllGraphicsPipelines();
 
-		void destroyVulkanInstance();
-		void destroyWindowSurface();
-		void destroyRenderDevice();
-		void destroySwapchain(); 
+		ResourceID constructVertexBuffer(const std::vector<Vertex>& verticies);
+		bool vertexBufferExists(ResourceID id) const;
+		void destroyVertexBuffer(ResourceID id);
 
-		const std::optional<VulkanInstance>& getVulkanInstance() const;
-		const std::optional<Surface>& getWindowSurface() const;
-		const std::optional<Device>& getRenderDevice() const;
-		const std::optional<Swapchain>& getSwapchain() const;
-		const std::unordered_map<std::string, std::shared_ptr<Shader>>& getShaderEntries() const;
-		const std::unordered_map<GraphicsPipeline::Config, GraphicsPipeline, GraphicsPipeline::Hasher>& getGraphicsPipelines() const;
+		ResourceID constructIndexBuffer(const std::vector<uint32_t>& indicies);
+		void destroyIndexBuffer(ResourceID id); 
+
+		void Draw(RenderTarget target,glm::vec4 clearColor);
 	};
-
 };

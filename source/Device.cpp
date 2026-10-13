@@ -1,15 +1,17 @@
 #include <PyraVK/Device.h> 
+#include <PyraVK/VulkanInstance.h>
+#include <PyraVK/Surface.h>
 #include <PyraVK/Renderer.h>
 
 namespace pyra
 {
-	
-	std::vector<Device::Config> Device::getSuitableDevices(const VulkanInstance& instance,const Surface& surface)
+
+	const std::vector<Device::Config> Device::getSuitableDevices(const VulkanInstance& instance,const Surface& surface)
 	{
 		std::vector<Device::Config> suitableDeviceConfigs{};
-		std::vector<vk::raii::PhysicalDevice> physicalDevices = instance.getVulkanInstanceHandle().enumeratePhysicalDevices();
+		std::vector<vk::raii::PhysicalDevice> physicalDevices = instance.getInstance().enumeratePhysicalDevices();
 
-		for (vk::raii::PhysicalDevice& currentPhysicalDevice : physicalDevices)
+		for (vk::raii::PhysicalDevice currentPhysicalDevice : physicalDevices)
 		{
 			vk::PhysicalDeviceProperties device_properties = currentPhysicalDevice.getProperties();
 
@@ -20,14 +22,15 @@ namespace pyra
 				continue;
 			}
 
-			const std::vector<const char*> requiredDeviceExtensions{ vk::KHRSwapchainExtensionName };
 			std::vector<vk::ExtensionProperties> supported_device_extentions = currentPhysicalDevice.enumerateDeviceExtensionProperties();
 
 			bool device_extensions_supported = std::ranges::all_of(requiredDeviceExtensions, [&supported_device_extentions,&device_properties](const char* required) -> bool {
 				bool extention_supported = std::ranges::any_of(supported_device_extentions, [&required,&device_properties](vk::ExtensionProperties& supported) -> bool {
 					return strcmp(required, supported.extensionName.data()) == 0;
 					});
-				pyra_warn(!extention_supported, "{:} does not support extension \"{:}\"", device_properties.deviceName.data(),required);
+
+				if(!extention_supported) spdlog::warn("{:} does not support extension \"{:}\"", device_properties.deviceName.data(),required);
+
 				return extention_supported;
 				});
 
@@ -56,7 +59,7 @@ namespace pyra
 			for (int32_t i = 0;i < queueFamilies.size();i++)
 			{
 				vk::QueueFamilyProperties& currentFamily = queueFamilies[i];
-				if ((currentFamily.queueFlags & vk::QueueFlagBits::eGraphics) && currentPhysicalDevice.getSurfaceSupportKHR(i, *surface.getSurfaceHandle()))
+				if ((currentFamily.queueFlags & vk::QueueFlagBits::eGraphics) && currentPhysicalDevice.getSurfaceSupportKHR(i, surface.getSurface()))
 				{
 					graphicsQueueFamilyIndex = i;
 					break;
@@ -69,27 +72,28 @@ namespace pyra
 				continue;
 			}
 
-			suitableDeviceConfigs.push_back({ currentPhysicalDevice,(uint32_t)graphicsQueueFamilyIndex});
+			Device::Config config{ .physicalDevice = currentPhysicalDevice, .queueFamilyIndex = (uint32_t)graphicsQueueFamilyIndex };
+			suitableDeviceConfigs.push_back(config);
 
 		}
 
 		return suitableDeviceConfigs;
 	}
 
-	Device::Device(const Device::Config config) : config(config)
+	Device::Device(const Device::Config config) : Object(config, Object::Type::RENDER_DEVICE)
 	{
-		std::vector<VkDeviceQueueCreateInfo> deviceQueueInfos;
+		physicalDevice = config.physicalDevice;
+		queueFamilyIndex = config.queueFamilyIndex;
 
 		float queuePriority = 0.50f;
 		VkDeviceQueueCreateInfo graphicsQueueInfo{
 			.sType = VK_STRUCTURE_TYPE_DEVICE_QUEUE_CREATE_INFO,
 			.pNext = NULL,
 			.flags = NULL,
-			.queueFamilyIndex = config.graphicsQueueFamilyIndex,
+			.queueFamilyIndex = queueFamilyIndex,
 			.queueCount = 1,
 			.pQueuePriorities = &queuePriority
 		};
-		deviceQueueInfos.push_back(graphicsQueueInfo);
 
 		VkPhysicalDeviceFeatures2 feats;
 		auto features = vk::StructureChain<vk::PhysicalDeviceFeatures2, vk::PhysicalDeviceVulkan11Features, vk::PhysicalDeviceVulkan13Features, vk::PhysicalDeviceExtendedDynamicStateFeaturesEXT>();
@@ -98,72 +102,35 @@ namespace pyra
 		features.get<vk::PhysicalDeviceExtendedDynamicStateFeaturesEXT>().extendedDynamicState = true;
 		features.get<vk::PhysicalDeviceVulkan13Features>().synchronization2 = true;
 
-		const std::vector<const char*> requiredDeviceExtensions{ vk::KHRSwapchainExtensionName };
-
 		VkDeviceCreateInfo deviceInfo{
 			.sType = VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO,
 			.pNext = &features.get<vk::PhysicalDeviceFeatures2>(),
 			.flags = NULL,
-			.queueCreateInfoCount = (uint32_t)deviceQueueInfos.size(),
-			.pQueueCreateInfos = deviceQueueInfos.data(),
+			.queueCreateInfoCount = 1,
+			.pQueueCreateInfos = &graphicsQueueInfo,
 			.enabledExtensionCount = (uint32_t)requiredDeviceExtensions.size(),
 			.ppEnabledExtensionNames = requiredDeviceExtensions.data(),
 		};
 
-		logicalDeviceHandle = vk::raii::Device(config.physicalDevice, vk::DeviceCreateInfo(deviceInfo));
-		graphicsQueueHandle = vk::raii::Queue(logicalDeviceHandle, config.graphicsQueueFamilyIndex, 0);
+		logicalDevice = vk::raii::Device(physicalDevice, vk::DeviceCreateInfo(deviceInfo));
+		graphicsQueue = vk::raii::Queue(logicalDevice, queueFamilyIndex, 0);
 
-		VkCommandPoolCreateInfo commandPoolInfo{
-			.sType = VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO,
-			.pNext = NULL,
-			.flags = VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT,
-			.queueFamilyIndex = config.graphicsQueueFamilyIndex
-		};
-
-		commandPoolHandle = vk::raii::CommandPool(logicalDeviceHandle, commandPoolInfo);
-
-		VkPipelineCacheCreateInfo graphicsPipelineCacheInfo{
-			.sType = VK_STRUCTURE_TYPE_PIPELINE_CACHE_CREATE_INFO,
-			.pNext = NULL,
-			.flags = {},
-			.initialDataSize = 0,
-			.pInitialData = NULL
-		};
-
-		graphicsPipelineCache = vk::raii::PipelineCache(logicalDeviceHandle, graphicsPipelineCacheInfo);
-
-		const auto& instance = Renderer::getRenderer().getVulkanInstance()->getVulkanInstanceHandle();
-		vma::AllocatorCreateInfo allocatorCreateInfo; 
-		allocatorCreateInfo.physicalDevice = config.physicalDevice;
-		deviceMemoryAllocator = vma::raii::Allocator(instance, logicalDeviceHandle, allocatorCreateInfo); 
 	}
 
-	const Device::Config& Device::getConfig() const
+	const vk::raii::PhysicalDevice& Device::getPhysicalDevice() const
 	{
-		return config;
+		return physicalDevice; 
 	}
-
-	const vk::raii::Device& Device::getLogicalDeviceHandle() const
+	const vk::raii::Device& Device::getLogicalDevice() const
 	{
-		return logicalDeviceHandle;
+		return logicalDevice;
 	}
-
-	const vk::raii::Queue& Device::getGraphicsQueueHandle() const
+	const vk::raii::Queue& Device::getGraphicsQueue() const
 	{
-		return graphicsQueueHandle;
+		return graphicsQueue;
 	}
-
-	const vk::raii::CommandPool& Device::getCommandPoolHandle() const
+	const uint32_t& Device::getQueueFamilyIndex() const
 	{
-		return commandPoolHandle;
-	}
-
-	const vk::raii::PipelineCache& Device::getGraphicsPipelineCacheHandle() const
-	{
-		return graphicsPipelineCache;
-	}
-	const vma::raii::Allocator& Device::getDeviceMemoryAllocator() const
-	{
-		return deviceMemoryAllocator;
+		return queueFamilyIndex;
 	}
 }

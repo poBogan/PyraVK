@@ -1,27 +1,27 @@
 #pragma once
-#include <PyraVK/Definitions.h>
+#include <PyraVK/Object.h>
 
 
 namespace pyra
 {
 
-	class VulkanInstance : public Base
+	class VulkanInstance : public Object
 	{
 	public : 
-		struct Config
+		struct Config : Object::Config
 		{
-			const uint32_t vulkan_api_version = vk::ApiVersion13;
+			uint32_t vulkan_api_version = vk::ApiVersion13;
 			std::vector<const char*> extentions{};
 			std::vector<const char*> layers{};
 		};
 	private : 
 		vk::raii::Context context;
-		vk::raii::Instance handle = nullptr;
+		vk::raii::Instance instance = nullptr;
 		const VulkanInstance::Config config;
 	public:
 		VulkanInstance(const VulkanInstance::Config config);
+		const vk::raii::Instance& getInstance() const;
 		const VulkanInstance::Config& getConfig() const;
-		const vk::raii::Instance& getVulkanInstanceHandle() const;
 	};
 
 }

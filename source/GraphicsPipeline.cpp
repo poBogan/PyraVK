@@ -1,14 +1,15 @@
 #include <PyraVK/GraphicsPipeline.h>
+#include <PyraVK/Shader.h>
+#include <PyraVk/Device.h>
 #include <PyraVK/VertexBuffer.h>
 
 namespace pyra
 {
-
-	GraphicsPipeline::GraphicsPipeline(const Device& device, const Shader& vertexShaderModule, const Shader& fragmentShaderModule, const GraphicsPipeline::Config& config) : config(config)
+	GraphicsPipeline::GraphicsPipeline(const GraphicsPipeline::Config config, const class Device& device, const class Shader& vertexShaderModule, const class Shader& fragmentShaderModule, const vk::raii::PipelineCache& pipelineCache) : Object(config, Object::Type::GRAPHICS_PIPELINE), config(config)
 	{
 		std::vector<VkPipelineShaderStageCreateInfo> shaderStages = {
-			{.sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO, .stage = VK_SHADER_STAGE_VERTEX_BIT, .module = (VkShaderModule)*vertexShaderModule.getShaderModuleHandle(), .pName = config.vertexShaderEntry.c_str()},
-			{.sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO, .stage = VK_SHADER_STAGE_FRAGMENT_BIT, .module = (VkShaderModule)*fragmentShaderModule.getShaderModuleHandle(), .pName = config.fragmentShaderEntry.c_str()},
+			{.sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO, .stage = VK_SHADER_STAGE_VERTEX_BIT, .module = (VkShaderModule)*vertexShaderModule.getShaderModule(), .pName = config.vertexShaderEntry.c_str()},
+			{.sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO, .stage = VK_SHADER_STAGE_FRAGMENT_BIT, .module = (VkShaderModule)*fragmentShaderModule.getShaderModule(), .pName = config.fragmentShaderEntry.c_str()},
 		}; 
 
 		auto bindingDescription = Vertex::getVertexBindingDescription();
@@ -104,7 +105,7 @@ namespace pyra
 			.pPushConstantRanges = NULL
 		};
 
-		pipelineLayout = vk::raii::PipelineLayout(device.getLogicalDeviceHandle(), vk::PipelineLayoutCreateInfo(pipelineLayoutInfo));
+		pipelineLayout = vk::raii::PipelineLayout(device.getLogicalDevice(), vk::PipelineLayoutCreateInfo(pipelineLayoutInfo));
 
 		const VkFormat colorAttachmentFormat = (VkFormat)this->config.colorAttachmentFormat;
 
@@ -134,7 +135,7 @@ namespace pyra
 			.renderPass = nullptr,
 		};
 
-		handle = vk::raii::Pipeline(device.getLogicalDeviceHandle(),device.getGraphicsPipelineCacheHandle(), vk::GraphicsPipelineCreateInfo(graphicsPipelineCreateInfo));
+		graphicsPipeline = vk::raii::Pipeline(device.getLogicalDevice(),pipelineCache, vk::GraphicsPipelineCreateInfo(graphicsPipelineCreateInfo));
 	}
 
 	const GraphicsPipeline::Config& GraphicsPipeline::getConfig() const
@@ -142,9 +143,9 @@ namespace pyra
 		return config;
 	}
 
-	const vk::raii::Pipeline& GraphicsPipeline::getGraphicsPipelineHandle() const
+	const vk::raii::Pipeline& GraphicsPipeline::getGraphicsPipeline() const
 	{
-		return handle;
+		return graphicsPipeline;
 	}
 
 }

@@ -1,24 +1,22 @@
 #pragma once
-#include <PyraVK/Definitions.h>
-#include <PyraVK/VulkanInstance.h>
+#include <PyraVK/Object.h>
 
 namespace pyra
 {
 
-	class Surface : public Base
+	class Surface : public Object
 	{
 	public : 
-		struct Config
+		struct Config : Object::Config
 		{
 			VkSurfaceKHR surface;
 		};
 	private : 
-		vk::raii::SurfaceKHR handle = nullptr; 
-		const Surface::Config config;
+		vk::raii::SurfaceKHR surface = nullptr; 
 	public : 
-		Surface(const VulkanInstance& instance,const Surface::Config config);
-		const Surface::Config& getConfig() const;
-		const vk::raii::SurfaceKHR& getSurfaceHandle() const; 
+		Surface(const Surface::Config config, const class VulkanInstance& instance);
+		
+		const vk::raii::SurfaceKHR& getSurface() const; 
 	};
 
 }

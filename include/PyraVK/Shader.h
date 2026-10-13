@@ -1,26 +1,25 @@
 #pragma once
-#include <PyraVK/Definitions.h>
-#include <PyraVK/Device.h>
+#include <PyraVK/Object.h>
 
 namespace pyra
 {
 
-	class Shader : public Base
+	class Shader : public Object
 	{
 	public : 
-		struct Config
+		struct Config : Object::Config
 		{
 			std::string file;
 			std::vector<std::string> vertexShaderEntries; 
 			std::vector<std::string> fragmentShaderEntries;
 		};
 	private :
-		vk::raii::ShaderModule shaderModuleHandle = nullptr;
+		vk::raii::ShaderModule shaderModule = nullptr;
 		const Shader::Config config;
 	public : 
-		Shader(const Device& device,const Shader::Config config);
+		Shader(const Shader::Config config, const class Device& device);
 		const Shader::Config& getConfig() const;
-		const vk::raii::ShaderModule& getShaderModuleHandle() const; 
+		const vk::raii::ShaderModule& getShaderModule() const; 
 	};
 
 }

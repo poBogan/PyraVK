@@ -1,16 +1,15 @@
 #include <PyraVK/Surface.h>
+#include <PyraVK/VulkanInstance.h>
 
 namespace pyra
 {
-
-
-	Surface::Surface(const VulkanInstance& instance,const Surface::Config config) : config(config)
+	Surface::Surface(const Surface::Config config, const VulkanInstance& instance) : Object(config,Object::Type::WINDOW_SURFACE)
 	{
-		handle = vk::raii::SurfaceKHR(instance.getVulkanInstanceHandle(), config.surface);
+		surface = vk::raii::SurfaceKHR(instance.getInstance(), config.surface);
 	}
 
-	const vk::raii::SurfaceKHR& Surface::getSurfaceHandle() const
+	const vk::raii::SurfaceKHR& Surface::getSurface() const
 	{
-		return handle;
+		return surface;
 	}
 }
