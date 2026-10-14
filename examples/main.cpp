@@ -68,7 +68,7 @@ int main()
 	while (!glfwWindowShouldClose(window))
 	{
 		glfwPollEvents();
-		renderer.Draw({pipelineID, bufferID}, {0.f, 1.f, 0.f, 1.f});
+		renderer.Draw({ pipelineID, bufferID, vk::Viewport(0,0,width,height,0,1.f), vk::Rect2D(vk::Offset2D(0,0), vk::Extent2D(width,height))}, {0.f, 1.f, 0.f, 1.f});
 	}
 
 	glfwDestroyWindow(window); 

@@ -57,7 +57,11 @@ namespace pyra
 
 	void Renderer::constructWindowSurface(Surface::Config config)
 	{
-		pyra_assert(vulkanInstanceExists());
+		if (!vulkanInstanceExists())
+		{
+			spdlog::error("Cannot construct window surface without a vulkan instance!");
+			return;
+		}
 
 		destroyWindowSurface();
 		windowSurface.emplace(Surface(config,*vulkanInstance));
@@ -82,7 +86,10 @@ namespace pyra
 
 	std::vector<Device::Config> Renderer::getSuitableDevices()
 	{
-		pyra_assert(vulkanInstanceExists()); 
+		if (!vulkanInstanceExists())
+		{
+			
+		}
 		pyra_assert(windowSurfaceExists());
 		return Device::getSuitableDevices(*vulkanInstance, *windowSurface);
 	}
@@ -96,7 +103,7 @@ namespace pyra
 		unselectDevice();
 		renderDevice.emplace(Device(config));
 
-		// Create a command pool for 
+		// Create a command pool for creating frames in flight
 		vk::CommandPoolCreateInfo commandPoolCreateInfo; 
 		commandPoolCreateInfo.flags = vk::CommandPoolCreateFlagBits::eResetCommandBuffer;
 		commandPoolCreateInfo.queueFamilyIndex = renderDevice->getQueueFamilyIndex();
@@ -300,7 +307,7 @@ namespace pyra
 
 		else
 		{
-			return (graphicsPipelinePool[id.index].generation == id.generation);
+			return (graphicsPipelinePool[id.index].generation == id.generation && graphicsPipelinePool[id.index].object.has_value());
 		}
 	}
 
@@ -313,9 +320,8 @@ namespace pyra
 			emptyGraphicsPipelinePoolSlots.push(id.index);
 		}
 		else
-		{
-			// spdlog::warn("Cannot delete graphics pipeline (generation={:%d},index={:%d}). No such graphics pipeline exists!", id.generation, id.index);
-			return;
+		{			
+			spdlog::error("Cannot destroy graphics pipeline. No graphics pipeline with id (generation={},index={}) exists");
 		}
 	}
 
@@ -413,6 +419,21 @@ namespace pyra
 	}
 
 	void Renderer::destroyVertexBuffer(ResourceID id)
+	{
+		if (vertexBufferExists(id))
+		{
+			vertexBufferPool[id.index].object.reset();
+			vertexBufferPool[id.index].generation++;
+			emptyVertexBufferPoolSlots.push(id.index);
+		}
+
+		else
+		{
+			spdlog::error("Cannot delete buffer. No buffer with id (generation={},index={}) exists,", id.generation, id.index);
+		}
+	}
+
+	void Renderer::destroyAllVertexBuffers()
 	{
 
 	}
@@ -540,6 +561,8 @@ namespace pyra
 
 		commandBuffer.beginRendering(renderingInfo); 
 		commandBuffer.bindPipeline(vk::PipelineBindPoint::eGraphics, graphicsPipeline.getGraphicsPipeline());
+		commandBuffer.setViewport(0, target.viewport); 
+		commandBuffer.setScissor(0, target.scissor);
 		commandBuffer.bindVertexBuffers(0,*vertexBuffer.getVertexBuffer(),vertexBuffer.getVertexBuffer().getAllocation().getInfo().offset);
 		commandBuffer.draw(vertexBuffer.getVertexCount(), 1, 0, 0);
 		commandBuffer.endRendering();

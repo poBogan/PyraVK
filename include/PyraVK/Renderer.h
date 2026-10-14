@@ -42,6 +42,8 @@ namespace pyra
 	{
 		ResourceID graphics_pipeline; 
 		ResourceID vertex_buffer; 
+		vk::Viewport viewport; 
+		vk::Rect2D scissor;
 		
 	};
 
@@ -55,21 +57,28 @@ namespace pyra
 		std::optional<Device> renderDevice;
 		std::optional<Swapchain> swapchain;
 
+		// Frames in flight objects
 		std::optional<vk::raii::CommandPool> frameCommandPool;
 		uint32_t currentFrameIdx = 0;
 		uint32_t concurrentFrameCount = 0;
 		std::vector<Frame> concurrentFrames;
 
+		// Saved shader modules
 		std::unordered_map<std::string, std::shared_ptr<Shader>> shaderEntries;
 
+		// Graphics Pipeline objects
 		std::optional<vk::raii::PipelineCache> graphicsPipelineCache;
 		std::queue<uint32_t> emptyGraphicsPipelinePoolSlots;
 		std::vector<Slot<GraphicsPipeline>> graphicsPipelinePool;
 
+		// Device memory allocator
 		std::optional<vma::raii::Allocator> memoryAllocator;
+
+		// Copy objects for buffer creation
 		std::optional<vk::raii::CommandPool> copy_CommandPool;
 		std::optional<vk::raii::CommandBuffer> copy_CommandBuffer;
 
+		// Buffer objects
 		std::queue<uint32_t> emptyVertexBufferPoolSlots;
 		std::vector<Slot<VertexBuffer>> vertexBufferPool;
 
@@ -125,6 +134,7 @@ namespace pyra
 		ResourceID constructVertexBuffer(const std::vector<Vertex>& verticies);
 		bool vertexBufferExists(ResourceID id) const;
 		void destroyVertexBuffer(ResourceID id);
+		void destroyAllVertexBuffers();
 
 		ResourceID constructIndexBuffer(const std::vector<uint32_t>& indicies);
 		void destroyIndexBuffer(ResourceID id); 
