@@ -13,10 +13,10 @@ namespace pyra
 
 	void pyra::Renderer::createRenderer()
 	{
-		// Create only one renderer instance
+		// Singleton Design, create only one renderer instance
 		if (!rendererExists())
 		{
-			spdlog::set_pattern("[PyraVK/%^%l%$] %v");
+			spdlog::set_pattern("[PyraVK/%^%l%$] %v"); 
 			singletonRenderer.emplace(Renderer());
 		}
 	}
@@ -57,12 +57,7 @@ namespace pyra
 
 	void Renderer::constructWindowSurface(Surface::Config config)
 	{
-		if (!vulkanInstanceExists())
-		{
-			spdlog::error("Cannot construct window surface without a vulkan instance!");
-			return;
-		}
-
+		pyra_assert(vulkanInstanceExists());
 		destroyWindowSurface();
 		windowSurface.emplace(Surface(config,*vulkanInstance));
 	}
@@ -86,38 +81,38 @@ namespace pyra
 
 	std::vector<Device::Config> Renderer::getSuitableDevices()
 	{
-		if (!vulkanInstanceExists())
-		{
-			
-		}
-		pyra_assert(windowSurfaceExists());
+		pyra_assert(vulkanInstanceExists()); 
+		pyra_assert(windowSurfaceExists()); 
 		return Device::getSuitableDevices(*vulkanInstance, *windowSurface);
 	}
 
 	void Renderer::selectDevice(Device::Config config)
 	{
-		pyra_assert(vulkanInstanceExists());
+		pyra_assert(vulkanInstanceExists()); 
 		pyra_assert(windowSurfaceExists());
 
-		// Destroy the previous device (if exists) and create a new one
+		// Destroy the previous device and select a new one
 		unselectDevice();
 		renderDevice.emplace(Device(config));
 
-		// Create a command pool for creating frames in flight
+		// Create a command pool for creating concurrent frames
 		vk::CommandPoolCreateInfo commandPoolCreateInfo; 
 		commandPoolCreateInfo.flags = vk::CommandPoolCreateFlagBits::eResetCommandBuffer;
 		commandPoolCreateInfo.queueFamilyIndex = renderDevice->getQueueFamilyIndex();
 		frameCommandPool.emplace(renderDevice->getLogicalDevice(), commandPoolCreateInfo);
 
+		// Create graphics pipeline cache
 		vk::PipelineCacheCreateInfo pipelineCacheCreateInfo; 
 		pipelineCacheCreateInfo.initialDataSize = 0; 
 		graphicsPipelineCache.emplace(renderDevice->getLogicalDevice(), pipelineCacheCreateInfo);
 
+		// Create a device memory allocator
 		vma::AllocatorCreateInfo allocatorCreateInfo; 
 		allocatorCreateInfo.physicalDevice = renderDevice->getPhysicalDevice();
 		allocatorCreateInfo.vulkanApiVersion = vulkanInstance->getConfig().vulkan_api_version;
 		memoryAllocator.emplace(vulkanInstance->getInstance(), renderDevice->getLogicalDevice(), allocatorCreateInfo);		
 
+		// Create command pool and command buffers for copying buffers
 		copy_CommandPool.emplace(renderDevice->getLogicalDevice(), commandPoolCreateInfo); 
 		vk::CommandBufferAllocateInfo copyCommandBufferAllocateInfo;
 		copyCommandBufferAllocateInfo.commandBufferCount = 1; 
@@ -143,14 +138,19 @@ namespace pyra
 			renderDevice->getLogicalDevice().waitIdle();
 
 		destroySwapchain();
+
 		destroyConcurrentFrames(); 
+		frameCommandPool.reset();
+
 		destroyAllShaders(); 
 		destroyAllGraphicsPipelines(); 
+		graphicsPipelineCache.reset();
 
 		copy_CommandBuffer.reset(); 
 		copy_CommandPool.reset();
-		frameCommandPool.reset(); 
-		graphicsPipelineCache.reset();
+
+		destroyAllVertexBuffers();
+
 		memoryAllocator.reset();
 		renderDevice.reset();
 	}
@@ -193,10 +193,9 @@ namespace pyra
 		concurrentFrames.reserve(frameCount);
 
 		currentFrameIdx = 0; 
-		concurrentFrameCount = frameCount; 
 
 		vk::CommandBufferAllocateInfo commandBufferAllocateInfo; 
-		commandBufferAllocateInfo.commandBufferCount = concurrentFrameCount;
+		commandBufferAllocateInfo.commandBufferCount = frameCount;
 		commandBufferAllocateInfo.commandPool = *frameCommandPool;
 		commandBufferAllocateInfo.level = vk::CommandBufferLevel::ePrimary; 
 
@@ -207,7 +206,7 @@ namespace pyra
 	
 		vk::SemaphoreCreateInfo semaphoreCreateInfo; 
 		
-		for (uint32_t i = 0;i < concurrentFrameCount;i++)
+		for (uint32_t i = 0;i < frameCount;i++)
 		{
 			Frame frame{
 				.commandBuffer = std::move(commandBuffers[i]),
@@ -222,14 +221,13 @@ namespace pyra
 
 	uint32_t Renderer::concurrentFramesCount() const
 	{
-		return concurrentFrameCount;
+		return concurrentFrames.size();
 	}
 
 	void Renderer::destroyConcurrentFrames()
 	{
 		concurrentFrames.clear();
 		currentFrameIdx = 0;
-		concurrentFrameCount = 0;
 	}
 
 	void Renderer::constructShaders(Shader::Config config)
@@ -270,72 +268,22 @@ namespace pyra
 		pyra_assert(shaderEntryExists(config.vertexShaderEntry)); 
 		pyra_assert(shaderEntryExists(config.fragmentShaderEntry));
 
-		ResourceID id;
-
-		if (emptyGraphicsPipelinePoolSlots.empty())
-		{
-			Slot<GraphicsPipeline> newSlot; 
-			newSlot.generation = 1; 
-			newSlot.object.emplace(GraphicsPipeline(config, *renderDevice, *shaderEntries[config.vertexShaderEntry], *shaderEntries[config.fragmentShaderEntry]));
-			graphicsPipelinePool.push_back(std::move(newSlot));
-			
-			id.generation = 1; 
-			id.index = graphicsPipelinePool.size() - 1;
-		}
-
-		else
-		{
-			uint32_t emptySlotIdx = emptyGraphicsPipelinePoolSlots.front(); 
-			emptyGraphicsPipelinePoolSlots.pop(); 
-
-			Slot<GraphicsPipeline>& emptySlot = graphicsPipelinePool[emptySlotIdx];
-			emptySlot.object.emplace(GraphicsPipeline(config, *renderDevice, *shaderEntries[config.vertexShaderEntry], *shaderEntries[config.fragmentShaderEntry],*graphicsPipelineCache)); 
-
-			id.generation = emptySlot.generation; 
-			id.index = emptySlotIdx;
-		}
-
-		return id;
+		return graphicsPipelinePool.add_resource(GraphicsPipeline(config, *renderDevice, *shaderEntries[config.vertexShaderEntry], *shaderEntries[config.fragmentShaderEntry]));
 	}
 
 	bool Renderer::graphicsPipelineExists(ResourceID id) const
 	{
-		if (graphicsPipelinePool.size() <= id.index)
-		{
-			return false;
-		}
-
-		else
-		{
-			return (graphicsPipelinePool[id.index].generation == id.generation && graphicsPipelinePool[id.index].object.has_value());
-		}
+		return graphicsPipelinePool.resource_vaild(id);
 	}
 
 	void Renderer::destroyGraphicsPipeline(ResourceID id)
 	{
-		if (graphicsPipelineExists(id))
-		{
-			graphicsPipelinePool[id.index].object.reset(); 
-			graphicsPipelinePool[id.index].generation++;
-			emptyGraphicsPipelinePoolSlots.push(id.index);
-		}
-		else
-		{			
-			spdlog::error("Cannot destroy graphics pipeline. No graphics pipeline with id (generation={},index={}) exists");
-		}
+		graphicsPipelinePool.destroy_resource(id);
 	}
 
 	void Renderer::destroyAllGraphicsPipelines()
 	{
-		for (int i = 0;i < graphicsPipelinePool.size();i++)
-		{
-			if (graphicsPipelinePool[i].object.has_value())
-			{
-				graphicsPipelinePool[i].object.reset(); 
-				graphicsPipelinePool[i].generation++;
-				emptyGraphicsPipelinePoolSlots.push(i);
-			}
-		}
+		graphicsPipelinePool.clear_resources();
 	}
 
 	ResourceID Renderer::constructVertexBuffer(const std::vector<Vertex>& verticies)
@@ -380,62 +328,22 @@ namespace pyra
 		renderDevice->getGraphicsQueue().submit(submitInfo); 
 		renderDevice->getLogicalDevice().waitIdle();
 
-		ResourceID id;
-
-		if (emptyVertexBufferPoolSlots.empty())
-		{
-			Slot<VertexBuffer> newSlot; 
-			newSlot.generation = 1; 
-			newSlot.object.emplace(VertexBuffer(std::move(vertexBuffer),verticies.size()));
-			vertexBufferPool.push_back(std::move(newSlot));
-
-			id.generation = 1; 
-			id.index = vertexBufferPool.size() - 1;
-		}
-
-		else
-		{
-			id.index = emptyVertexBufferPoolSlots.front(); 
-			emptyVertexBufferPoolSlots.pop(); 
-
-			Slot<VertexBuffer>& emptySlot = vertexBufferPool[id.index]; 
-			emptySlot.object.emplace(VertexBuffer(std::move(vertexBuffer), verticies.size()));
-			id.generation = emptySlot.generation;
-		}
-
-		return id;
+		return vertexBufferPool.add_resource(VertexBuffer(std::move(vertexBuffer),verticies.size()));
 	}
 
 	bool Renderer::vertexBufferExists(ResourceID id) const
 	{
-		if (vertexBufferPool.size() <= id.index)
-		{
-			return false;
-		}
-		else
-		{
-			return (vertexBufferPool[id.index].generation == id.generation);
-		}
+		return vertexBufferPool.resource_vaild(id);
 	}
 
 	void Renderer::destroyVertexBuffer(ResourceID id)
 	{
-		if (vertexBufferExists(id))
-		{
-			vertexBufferPool[id.index].object.reset();
-			vertexBufferPool[id.index].generation++;
-			emptyVertexBufferPoolSlots.push(id.index);
-		}
-
-		else
-		{
-			spdlog::error("Cannot delete buffer. No buffer with id (generation={},index={}) exists,", id.generation, id.index);
-		}
+		return vertexBufferPool.destroy_resource(id);
 	}
 
 	void Renderer::destroyAllVertexBuffers()
 	{
-
+		vertexBufferPool.clear_resources();
 	}
 
 	ResourceID Renderer::constructIndexBuffer(const std::vector<uint32_t>& indicies)
@@ -494,23 +402,29 @@ namespace pyra
 	
 	void Renderer::Draw(RenderTarget target, glm::vec4 clearColor)
 	{
-		pyra_assert(vulkanInstance.has_value()); 
-		pyra_assert(windowSurface.has_value());
-		pyra_assert(renderDevice.has_value());
-		pyra_assert(swapchain.has_value());
-		pyra_assert(!concurrentFrames.empty());
+		pyra_assert(vulkanInstanceExists()); 
+		pyra_assert(windowSurfaceExists());
+		pyra_assert(deviceSelected());
+		pyra_assert(swapchainExists());
+		pyra_assert(concurrentFramesCount() > 0);
 		pyra_assert(graphicsPipelineExists(target.graphics_pipeline)); 
 		pyra_assert(vertexBufferExists(target.vertex_buffer));
 
-		currentFrameIdx %= concurrentFrameCount;
+		if (graphicsPipelinePool.get_resource(target.graphics_pipeline).getConfig().colorAttachmentFormat != swapchain->getConfig().imageFormat)
+		{
+			pyra_error("Graphics pipeline's target color format and Swapchain's image format mismatch!");
+			return;
+		}
+
+		currentFrameIdx %= concurrentFrames.size();
 		const auto& logicalDevice = renderDevice->getLogicalDevice();
 		const auto& graphicsQueue = renderDevice->getGraphicsQueue();
 		const auto& currentFrame = concurrentFrames[currentFrameIdx];
 		const auto& swapchain_ = swapchain->getSwapchain();
 		const auto& commandBuffer = currentFrame.commandBuffer;
 
-		const auto& graphicsPipeline = *graphicsPipelinePool[target.graphics_pipeline.index].object;
-		const auto& vertexBuffer = *vertexBufferPool[target.vertex_buffer.index].object;
+		const auto& graphicsPipeline = graphicsPipelinePool.get_resource(target.graphics_pipeline);
+		const auto& vertexBuffer = vertexBufferPool.get_resource(target.vertex_buffer);
 
 		logicalDevice.waitForFences(*currentFrame.commandBufferReadyFence, VK_TRUE, UINT64_MAX);
 		logicalDevice.resetFences(*currentFrame.commandBufferReadyFence);

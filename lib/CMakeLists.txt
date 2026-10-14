@@ -5,7 +5,7 @@ include(FetchContent)
 
 
 set(PYRA_INCLUDE_PATH "../include") 
-file(GLOB_RECURSE PYRA_HEADER_FILES "../include/PyraVK/*.h")
+file(GLOB_RECURSE PYRA_HEADER_FILES "../include/PyraVK/*.h" "../include/PyraVK/*.hpp")
 file(GLOB_RECURSE PYRA_SOURCE_FILES "../source/*.cpp")
 
 find_package(Vulkan REQUIRED)

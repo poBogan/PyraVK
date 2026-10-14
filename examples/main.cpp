@@ -43,7 +43,7 @@ int main()
 	pyra::Shader::Config shaderInfo{
 		.file = "pyra_shader.spirv",
 		.vertexShaderEntries = {"vsEntry"},
-		.fragmentShaderEntries = {"fsEntry"},
+		.fragmentShaderEntries = {"fsEntry"}
 	};
 	renderer.constructShaders(shaderInfo);
 

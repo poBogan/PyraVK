@@ -4,6 +4,7 @@
 #include <PyraVK/Device.h>
 #include <PyraVK/Swapchain.h>
 #include <PyraVk/Shader.h>
+#include <PyraVK/ResourcePool.hpp>
 #include <PyraVK/GraphicsPipeline.h>
 #include <PyraVK/VertexBuffer.h>
 #include <PyraVK/IndexBuffer.h>
@@ -15,27 +16,6 @@ namespace pyra
 		vk::raii::CommandBuffer commandBuffer;
 		vk::raii::Fence commandBufferReadyFence;
 		vk::raii::Semaphore commandBufferImagePaintableSemaphore;
-	};
-
-	struct ResourceID
-	{
-		uint32_t generation;
-		uint32_t index;
-	};
-
-	template<class T> struct Slot
-	{
-		std::optional<T> object; 
-		uint32_t generation = 1;
-
-		Slot<T>() noexcept = default;
-		~Slot<T>() noexcept = default;
-
-		Slot(const Slot<T>&) = delete;
-		const Slot<T>& operator=(const Slot<T>&) = delete; 
-
-		Slot(Slot<T>&&) noexcept = default; 
-		Slot<T>& operator=(Slot<T>&&) noexcept = default;
 	};
 
 	struct RenderTarget
@@ -57,10 +37,9 @@ namespace pyra
 		std::optional<Device> renderDevice;
 		std::optional<Swapchain> swapchain;
 
-		// Frames in flight objects
+		// Concurrent frame objects
 		std::optional<vk::raii::CommandPool> frameCommandPool;
 		uint32_t currentFrameIdx = 0;
-		uint32_t concurrentFrameCount = 0;
 		std::vector<Frame> concurrentFrames;
 
 		// Saved shader modules
@@ -68,8 +47,7 @@ namespace pyra
 
 		// Graphics Pipeline objects
 		std::optional<vk::raii::PipelineCache> graphicsPipelineCache;
-		std::queue<uint32_t> emptyGraphicsPipelinePoolSlots;
-		std::vector<Slot<GraphicsPipeline>> graphicsPipelinePool;
+		ResourcePool<GraphicsPipeline> graphicsPipelinePool;
 
 		// Device memory allocator
 		std::optional<vma::raii::Allocator> memoryAllocator;
@@ -79,11 +57,9 @@ namespace pyra
 		std::optional<vk::raii::CommandBuffer> copy_CommandBuffer;
 
 		// Buffer objects
-		std::queue<uint32_t> emptyVertexBufferPoolSlots;
-		std::vector<Slot<VertexBuffer>> vertexBufferPool;
+		ResourcePool<VertexBuffer> vertexBufferPool; 
+		ResourcePool<IndexBuffer> indexBufferPool; 
 
-		std::queue<uint32_t> emptyIndexBufferPoolSlots;
-		std::vector<Slot<IndexBuffer>> indexBufferPool;
 	public:
 		Renderer() = default;
 		Renderer(const Renderer&) = delete; 
