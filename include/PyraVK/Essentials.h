@@ -23,4 +23,4 @@
 if(!(assertion)) {spdlog::critical("Function: {:} => Failed Assertion: {:}",__FUNCTION__,#assertion); \
 throw std::runtime_error(#assertion " failed");}
 
-#define pyra_error(message,...) spdlog::error("Function: {:} => " message,__FUNCTION__,__VA_ARGS__)
+#define pyra_error(message,...) spdlog::error("Function: {:} => " message,__func__)

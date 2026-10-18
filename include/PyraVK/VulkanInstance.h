@@ -8,10 +8,10 @@ namespace pyra
 	class VulkanInstance : public Object
 	{
 	public : 
-		struct Config : Object::Config
+		struct Config
 		{
 			uint32_t vulkan_api_version = vk::ApiVersion13;
-			std::vector<const char*> extentions{};
+			std::vector<const char*> extensions{};
 			std::vector<const char*> layers{};
 		};
 	private : 
@@ -19,9 +19,9 @@ namespace pyra
 		vk::raii::Instance instance = nullptr;
 		const VulkanInstance::Config config;
 	public:
-		VulkanInstance(const VulkanInstance::Config config);
-		const vk::raii::Instance& getInstance() const;
-		const VulkanInstance::Config& getConfig() const;
+		explicit VulkanInstance(const VulkanInstance::Config& config);
+		[[nodiscard]] const vk::raii::Instance& getInstance() const;
+		[[nodiscard]] const VulkanInstance::Config& getConfig() const;
 	};
 
 }

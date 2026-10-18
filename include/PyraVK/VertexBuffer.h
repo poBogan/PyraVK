@@ -9,24 +9,31 @@ namespace pyra
 		glm::vec2 position;
 		glm::vec4 color;
 
-		static VkVertexInputBindingDescription getVertexBindingDescription()
+		static vk::VertexInputBindingDescription getVertexBindingDescription()
 		{
-			VkVertexInputBindingDescription bindingInfo{
-				.binding = 0,
-				.stride = sizeof(Vertex),
-				.inputRate = VK_VERTEX_INPUT_RATE_VERTEX
-			};
-
+			vk::VertexInputBindingDescription bindingInfo;
+			bindingInfo.binding = 0;
+			bindingInfo.stride = sizeof(Vertex);
+			bindingInfo.inputRate = vk::VertexInputRate::eVertex;
 			return bindingInfo;
 		};
 
-		static std::vector<VkVertexInputAttributeDescription> getVertexAttributeDescriptions()
+		static std::vector<vk::VertexInputAttributeDescription> getVertexAttributeDescriptions()
 		{
-			std::vector<VkVertexInputAttributeDescription> attributeDescriptions
-			{
-				{.location = 0,.binding = 0,.format = VK_FORMAT_R32G32_SFLOAT,.offset = offsetof(Vertex,position) }, 
-				{.location = 1,.binding = 0,.format = VK_FORMAT_R32G32B32A32_SFLOAT,.offset = offsetof(Vertex,color) }
-			}; 
+			vk::VertexInputAttributeDescription positionInfo;
+			positionInfo.binding = 0;
+			positionInfo.location = 0;
+			positionInfo.format = vk::Format::eR32G32Sfloat;
+			positionInfo.offset = offsetof(Vertex, position);
+
+			vk::VertexInputAttributeDescription colorInfo;
+			colorInfo.binding = 0;
+			colorInfo.location = 1;
+			colorInfo.format = vk::Format::eR32G32B32A32Sfloat;
+			colorInfo.offset = offsetof(Vertex, color);
+
+			std::vector<vk::VertexInputAttributeDescription> attributeDescriptions{positionInfo, colorInfo};
+
 			return attributeDescriptions;
 		}
 	};
@@ -37,9 +44,9 @@ namespace pyra
 		vma::raii::Buffer vertexBuffer;
 		uint32_t vertexCount;
 	public:
-		VertexBuffer(vma::raii::Buffer&& buffer, const uint32_t vertexCount);
-		const vma::raii::Buffer& getVertexBuffer() const; 
-		const uint32_t& getVertexCount() const;
+		VertexBuffer(vma::raii::Buffer&& buffer, uint32_t vertexCount);
+		[[nodiscard]] const vma::raii::Buffer& getVertexBuffer() const;
+		[[nodiscard]] const uint32_t& getVertexCount() const;
 	};
 
 }

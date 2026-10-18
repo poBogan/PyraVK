@@ -16,22 +16,22 @@ int main()
 	auto& renderer = pyra::Renderer::getRenderer();
 
 	pyra::VulkanInstance::Config vulkanInstanceInfo{
-		.extentions = extension_names,
+		.extensions = extension_names,
 		.layers = {"VK_LAYER_KHRONOS_validation"}
 	};
 	renderer.constructVulkanInstance(vulkanInstanceInfo);
 
-	pyra::Surface::Config windowSurfaceInfo;
-	glfwCreateWindowSurface(*renderer.getVulkanInstance().getInstance(), window, nullptr, &windowSurfaceInfo.surface);
-	renderer.constructWindowSurface(windowSurfaceInfo);
+	VkSurfaceKHR surface;
+	glfwCreateWindowSurface(*renderer.getVulkanInstance().getInstance(), window, nullptr,&surface);
+	renderer.constructWindowSurface(surface);
 
-	std::vector<pyra::Device::Config> deviceConfigs = renderer.getSuitableDevices();
+	const std::vector<pyra::Device::Config> deviceConfigs = renderer.getSuitableDevices();
 	renderer.selectDevice(deviceConfigs.front());
 
 	int width, height;
 	glfwGetFramebufferSize(window, &width, &height);
 	pyra::Swapchain::Config swapchainInfo{
-		.imageExtent = {(uint32_t)width, (uint32_t)height},
+		.imageExtent = {static_cast<uint32_t>(width), static_cast<uint32_t>(height)},
 		.imageCount = 3,
 		.imageFormat = vk::Format::eB8G8R8A8Unorm,
 		.colorSpace = vk::ColorSpaceKHR::eSrgbNonlinear,
@@ -40,14 +40,14 @@ int main()
 	swapchainInfo = renderer.constructSwapchain(swapchainInfo);
 	renderer.constructConcurrentFrames(swapchainInfo.imageCount - 1);
 
-	pyra::Shader::Config shaderInfo{
+	const pyra::Shader::Config shaderInfo{
 		.file = "pyra_shader.spirv",
 		.vertexShaderEntries = {"vsEntry"},
 		.fragmentShaderEntries = {"fsEntry"}
 	};
 	renderer.constructShaders(shaderInfo);
 
-	pyra::GraphicsPipeline::Config pipelineInfo{
+	const pyra::GraphicsPipeline::Config pipelineInfo{
 		.vertexShaderEntry = "vsEntry",
 		.fragmentShaderEntry = "fsEntry",
 		.colorAttachmentFormat = swapchainInfo.imageFormat,
@@ -57,18 +57,27 @@ int main()
 	};
 	pyra::ResourceID pipelineID = renderer.constructGraphicsPipeline(pipelineInfo);
 	
-	std::vector<pyra::Vertex> verticies{
-		{{0.f,1.f}, {1.f,1.f,0.f,1.f}},
-		{{1.f,0.f}, {1.f,0.f,0.f,1.f}},
-		{{1.f,1.f}, {1.f,0.f,0.f,1.f}},
+	std::vector<pyra::Vertex> vertices{
+		{.position = {0.f,1.f}, .color = {1.f,1.f,0.f,1.f}},
+		{.position = {1.f,0.f}, .color = {1.f,0.f,0.f,1.f}},
+		{.position = {1.f,1.f}, .color = {1.f,0.f,0.f,1.f}},
 	};
+	pyra::ResourceID bufferID = renderer.constructVertexBuffer(vertices);
 
-	pyra::ResourceID bufferID = renderer.constructVertexBuffer(verticies);
+	vk::Viewport viewport(0.f,0.f,static_cast<float>(width),static_cast<float>(height),0.f,1.f);
+	vk::Rect2D scissor(vk::Offset2D(0,0), vk::Extent2D(static_cast<uint32_t>(width),static_cast<uint32_t>(height)));
+	pyra::RenderTarget target {
+		.graphics_pipeline = pipelineID,
+		.vertex_buffer = bufferID,
+		.viewport = viewport,
+		.scissor = scissor
+	};
+	glm::vec4 clearColor {0.f,0.f,1.f,1.f};
 
 	while (!glfwWindowShouldClose(window))
 	{
 		glfwPollEvents();
-		renderer.Draw({ pipelineID, bufferID, vk::Viewport(0,0,width,height,0,1.f), vk::Rect2D(vk::Offset2D(0,0), vk::Extent2D(width,height))}, {0.f, 1.f, 0.f, 1.f});
+		renderer.Draw(target,clearColor);
 	}
 
 	glfwDestroyWindow(window); 

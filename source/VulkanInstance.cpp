@@ -3,30 +3,21 @@
 
 namespace pyra
 {
-	VulkanInstance::VulkanInstance(const VulkanInstance::Config config) : Object(config, Object::Type::VULKAN_INSTANCE), config(config)
+	VulkanInstance::VulkanInstance(const VulkanInstance::Config& config) : Object()
 	{
-		VkApplicationInfo appInfo
-		{
-			.sType = VK_STRUCTURE_TYPE_APPLICATION_INFO,
-			.pNext = NULL,
-			.pApplicationName = "PyraVK App",
-			.applicationVersion = VK_MAKE_VERSION(1,0,0),
-			.pEngineName = "PyraVK Engine",
-			.engineVersion = VK_MAKE_VERSION(1,0,0),
-			.apiVersion = config.vulkan_api_version
-		};
+		vk::ApplicationInfo appInfo;
+		appInfo.pApplicationName = "PyraVK App";
+		appInfo.applicationVersion = VK_MAKE_VERSION(1,0,0);
+		appInfo.pEngineName = "PyraVK Engine";
+		appInfo.engineVersion = VK_MAKE_VERSION(1,0,0);
+		appInfo.apiVersion = config.vulkan_api_version;
 
-		VkInstanceCreateInfo instanceInfo
-		{
-			.sType = VK_STRUCTURE_TYPE_INSTANCE_CREATE_INFO,
-			.pNext = NULL,
-			.flags = NULL,
-			.pApplicationInfo = &appInfo,
-			.enabledLayerCount = (uint32_t)config.layers.size(),
-			.ppEnabledLayerNames = config.layers.data(),
-			.enabledExtensionCount = (uint32_t)config.extentions.size(),
-			.ppEnabledExtensionNames = config.extentions.data()
-		};
+		vk::InstanceCreateInfo instanceInfo;
+		instanceInfo.pApplicationInfo = &appInfo;
+		instanceInfo.enabledLayerCount = static_cast<uint32_t>(config.layers.size());
+		instanceInfo.ppEnabledLayerNames = config.layers.data();
+		instanceInfo.enabledExtensionCount = static_cast<uint32_t>(config.extensions.size());
+		instanceInfo.ppEnabledExtensionNames = config.extensions.data();
 
 		instance = vk::raii::Instance(context, vk::InstanceCreateInfo(instanceInfo));
 	}

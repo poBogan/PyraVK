@@ -7,13 +7,13 @@ namespace pyra
 	class Swapchain : public Object
 	{
 	public : 
-		struct Config : Object::Config
+		struct Config
 		{
-			vk::Extent2D imageExtent;
-			uint32_t imageCount;
-			vk::Format imageFormat; 
-			vk::ColorSpaceKHR colorSpace; 
-			vk::PresentModeKHR presentMode;
+			vk::Extent2D imageExtent{};
+			uint32_t imageCount = 0;
+			vk::Format imageFormat{};
+			vk::ColorSpaceKHR colorSpace{};
+			vk::PresentModeKHR presentMode{};
 		};
 	private:
 		Swapchain::Config config;
@@ -22,12 +22,12 @@ namespace pyra
 		std::vector<vk::raii::ImageView> imageViews;
 		std::vector<vk::raii::Semaphore> imagePresentableSemaphores;
 	public : 
-		Swapchain(const Swapchain::Config config, const class Device& device,const class Surface& surface);
+		explicit  Swapchain(const Swapchain::Config& config, const class Device& device,const class Surface& surface);
 
-		const vk::raii::SwapchainKHR& getSwapchain() const;
-		const std::vector<vk::Image>& getImages() const; 
-		const std::vector<vk::raii::ImageView>& getImageViews() const;
-		const std::vector<vk::raii::Semaphore>& getImagePresentableSemaphores() const;
-		const Swapchain::Config& getConfig() const;
+		[[nodiscard]] const vk::raii::SwapchainKHR& getSwapchain() const;
+		[[nodiscard]] const std::vector<vk::Image>& getImages() const;
+		[[nodiscard]] const std::vector<vk::raii::ImageView>& getImageViews() const;
+		[[nodiscard]] const std::vector<vk::raii::Semaphore>& getImagePresentableSemaphores() const;
+		[[nodiscard]] const Swapchain::Config& getConfig() const;
 	};
 }

@@ -3,9 +3,9 @@
 
 namespace pyra
 {
-	Surface::Surface(const Surface::Config config, const VulkanInstance& instance) : Object(config,Object::Type::WINDOW_SURFACE)
+	Surface::Surface(const VkSurfaceKHR& surface, const VulkanInstance& instance) : Object()
 	{
-		surface = vk::raii::SurfaceKHR(instance.getInstance(), config.surface);
+		this->surface = vk::raii::SurfaceKHR(instance.getInstance(), surface);
 	}
 
 	const vk::raii::SurfaceKHR& Surface::getSurface() const

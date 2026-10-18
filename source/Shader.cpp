@@ -4,7 +4,7 @@
 
 namespace pyra
 {
-	std::vector<char> readShader(std::string fileName)
+	static std::vector<char> readShader(const std::string& fileName)
 	{
 		std::ifstream file(fileName, std::ios::ate | std::ios::binary);
 		if (!file.is_open())
@@ -13,8 +13,8 @@ namespace pyra
 			return {};
 		}
 
-		int fileSize = file.tellg();
-		file.seekg(std::ios::beg, 0);
+		const int fileSize = file.tellg();
+		file.seekg(std::ios::beg);
 
 		std::vector<char> buffer(fileSize);
 		file.read(buffer.data(), fileSize);
@@ -22,18 +22,16 @@ namespace pyra
 		return buffer;
 	}
 
-	pyra::Shader::Shader(const Shader::Config config, const Device& device) : Object(config, Object::Type::SHADER_MODULE), config(config)
+	Shader::Shader(const Shader::Config& config, const class Device& device) : Object(), config(config)
 	{
 		std::vector<char> moduleCode = readShader(config.file);
+		pyra_assert(!moduleCode.empty());
 		moduleCode.shrink_to_fit();
 
-		VkShaderModuleCreateInfo shaderModuleInfo{
-			.sType = VK_STRUCTURE_TYPE_SHADER_MODULE_CREATE_INFO,
-			.pNext = NULL,
-			.flags = {},
-			.codeSize = (uint32_t)moduleCode.size(),
-			.pCode = reinterpret_cast<uint32_t*>(moduleCode.data())
-		};
+		vk::ShaderModuleCreateInfo shaderModuleInfo;
+		shaderModuleInfo.codeSize = static_cast<uint32_t>(moduleCode.size()),
+		shaderModuleInfo.pCode = reinterpret_cast<uint32_t*>(moduleCode.data()),
+
 		shaderModule = vk::raii::ShaderModule(device.getLogicalDevice(), shaderModuleInfo);
 	}
 

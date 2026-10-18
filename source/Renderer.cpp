@@ -32,7 +32,7 @@ namespace pyra
 		return singletonRenderer.value();
 	}
 
-	void Renderer::constructVulkanInstance(VulkanInstance::Config config)
+	void Renderer::constructVulkanInstance(const VulkanInstance::Config& config)
 	{
 		destroyVulkanInstance();
 		vulkanInstance.emplace(VulkanInstance(config));
@@ -55,11 +55,11 @@ namespace pyra
 		vulkanInstance.reset();
 	}
 
-	void Renderer::constructWindowSurface(Surface::Config config)
+	void Renderer::constructWindowSurface(const VkSurfaceKHR& surface)
 	{
 		pyra_assert(vulkanInstanceExists());
 		destroyWindowSurface();
-		windowSurface.emplace(Surface(config,*vulkanInstance));
+		windowSurface.emplace(Surface(surface,*vulkanInstance));
 	}
 
 	bool Renderer::windowSurfaceExists() const
@@ -79,14 +79,14 @@ namespace pyra
 		windowSurface.reset();
 	}
 
-	std::vector<Device::Config> Renderer::getSuitableDevices()
+	std::vector<Device::Config> Renderer::getSuitableDevices() const
 	{
 		pyra_assert(vulkanInstanceExists()); 
 		pyra_assert(windowSurfaceExists()); 
 		return Device::getSuitableDevices(*vulkanInstance, *windowSurface);
 	}
 
-	void Renderer::selectDevice(Device::Config config)
+	void Renderer::selectDevice(const Device::Config& config)
 	{
 		pyra_assert(vulkanInstanceExists()); 
 		pyra_assert(windowSurfaceExists());
@@ -108,7 +108,7 @@ namespace pyra
 
 		// Create a device memory allocator
 		vma::AllocatorCreateInfo allocatorCreateInfo; 
-		allocatorCreateInfo.physicalDevice = renderDevice->getPhysicalDevice();
+		allocatorCreateInfo.physicalDevice = *renderDevice->getPhysicalDevice();
 		allocatorCreateInfo.vulkanApiVersion = vulkanInstance->getConfig().vulkan_api_version;
 		memoryAllocator.emplace(vulkanInstance->getInstance(), renderDevice->getLogicalDevice(), allocatorCreateInfo);		
 
@@ -116,7 +116,7 @@ namespace pyra
 		copy_CommandPool.emplace(renderDevice->getLogicalDevice(), commandPoolCreateInfo); 
 		vk::CommandBufferAllocateInfo copyCommandBufferAllocateInfo;
 		copyCommandBufferAllocateInfo.commandBufferCount = 1; 
-		copyCommandBufferAllocateInfo.commandPool = *copy_CommandPool;
+		copyCommandBufferAllocateInfo.commandPool = **copy_CommandPool;
 		copyCommandBufferAllocateInfo.level = vk::CommandBufferLevel::ePrimary; 
 		copy_CommandBuffer.emplace(std::move(vk::raii::CommandBuffers(renderDevice->getLogicalDevice(), copyCommandBufferAllocateInfo).front()));
 	}
@@ -202,16 +202,16 @@ namespace pyra
 		vk::raii::CommandBuffers commandBuffers((*renderDevice).getLogicalDevice(), commandBufferAllocateInfo);
 
 		vk::FenceCreateInfo fenceCreateInfo; 
-		fenceCreateInfo.flags = vk::FenceCreateFlagBits::eSignaled; 
-	
-		vk::SemaphoreCreateInfo semaphoreCreateInfo; 
-		
+		fenceCreateInfo.flags = vk::FenceCreateFlagBits::eSignaled;
+
+		constexpr vk::SemaphoreCreateInfo semaphoreCreateInfo{};
+
 		for (uint32_t i = 0;i < frameCount;i++)
 		{
 			Frame frame{
 				.commandBuffer = std::move(commandBuffers[i]),
-				.commandBufferReadyFence = vk::raii::Fence((*renderDevice).getLogicalDevice(),fenceCreateInfo),
-				.commandBufferImagePaintableSemaphore = vk::raii::Semaphore((*renderDevice).getLogicalDevice(), semaphoreCreateInfo)
+				.commandBufferReadyFence = vk::raii::Fence(renderDevice->getLogicalDevice(),fenceCreateInfo),
+				.commandBufferImagePaintableSemaphore = vk::raii::Semaphore(renderDevice->getLogicalDevice(), semaphoreCreateInfo)
 			}; 
 
 			concurrentFrames.push_back(std::move(frame));
@@ -230,13 +230,13 @@ namespace pyra
 		currentFrameIdx = 0;
 	}
 
-	void Renderer::constructShaders(Shader::Config config)
+	void Renderer::constructShaders(const Shader::Config& config)
 	{
 		pyra_assert(vulkanInstanceExists());
 		pyra_assert(windowSurfaceExists());
 		pyra_assert(deviceSelected());
 
-		std::shared_ptr<Shader> newShader = std::make_shared<Shader>(config, *renderDevice); 
+		auto newShader = std::make_shared<Shader>(config, *renderDevice);
 
 		for (const auto& vertexShaderEntry : config.vertexShaderEntries)
 		{
@@ -249,9 +249,9 @@ namespace pyra
 		}
 	}
 
-	bool Renderer::shaderEntryExists(std::string entryName) const
+	bool Renderer::shaderEntryExists(const std::string& entryName) const
 	{
-		return (shaderEntries.find(entryName) != shaderEntries.end());
+		return (shaderEntries.contains(entryName));
 	}
 
 	void Renderer::destroyAllShaders()
@@ -259,7 +259,7 @@ namespace pyra
 		shaderEntries.clear();
 	}
 
-	ResourceID Renderer::constructGraphicsPipeline(GraphicsPipeline::Config config)
+	ResourceID Renderer::constructGraphicsPipeline(const GraphicsPipeline::Config& config)
 	{
 		pyra_assert(vulkanInstanceExists());
 		pyra_assert(windowSurfaceExists());
@@ -271,12 +271,12 @@ namespace pyra
 		return graphicsPipelinePool.add_resource(GraphicsPipeline(config, *renderDevice, *shaderEntries[config.vertexShaderEntry], *shaderEntries[config.fragmentShaderEntry]));
 	}
 
-	bool Renderer::graphicsPipelineExists(ResourceID id) const
+	bool Renderer::graphicsPipelineExists(const ResourceID id) const
 	{
 		return graphicsPipelinePool.resource_vaild(id);
 	}
 
-	void Renderer::destroyGraphicsPipeline(ResourceID id)
+	void Renderer::destroyGraphicsPipeline(const ResourceID id)
 	{
 		graphicsPipelinePool.destroy_resource(id);
 	}
@@ -286,7 +286,7 @@ namespace pyra
 		graphicsPipelinePool.clear_resources();
 	}
 
-	ResourceID Renderer::constructVertexBuffer(const std::vector<Vertex>& verticies)
+	ResourceID Renderer::constructVertexBuffer(const std::vector<Vertex>& vertices)
 	{
 		pyra_assert(vulkanInstanceExists());
 		pyra_assert(windowSurfaceExists());
@@ -295,7 +295,7 @@ namespace pyra
 		vk::BufferCreateInfo bufferCreateInfo; 
 		bufferCreateInfo.queueFamilyIndexCount = 1; 
 		bufferCreateInfo.pQueueFamilyIndices = &renderDevice->getQueueFamilyIndex();
-		bufferCreateInfo.size = sizeof(Vertex) * verticies.size();
+		bufferCreateInfo.size = sizeof(Vertex) * vertices.size();
 		bufferCreateInfo.usage = vk::BufferUsageFlagBits::eTransferSrc; 
 
 		vma::AllocationCreateInfo allocationCreateInfo; 
@@ -303,10 +303,10 @@ namespace pyra
 		allocationCreateInfo.requiredFlags = vk::MemoryPropertyFlagBits::eHostVisible | vk::MemoryPropertyFlagBits::eHostCoherent;
 		allocationCreateInfo.usage = vma::MemoryUsage::eAuto;
 
-		vma::raii::Buffer stageBuffer(*memoryAllocator, bufferCreateInfo, allocationCreateInfo);
+		const vma::raii::Buffer stageBuffer(*memoryAllocator, bufferCreateInfo, allocationCreateInfo);
 
 		void* mapped = stageBuffer.getAllocation().map();
-		memcpy(mapped, verticies.data(), sizeof(Vertex) * verticies.size()); 
+		memcpy(mapped, vertices.data(), sizeof(Vertex) * vertices.size());
 		stageBuffer.getAllocation().unmap(); 
 
 		bufferCreateInfo.usage = vk::BufferUsageFlagBits::eTransferDst | vk::BufferUsageFlagBits::eVertexBuffer;
@@ -317,26 +317,24 @@ namespace pyra
 		vma::raii::Buffer vertexBuffer(*memoryAllocator, bufferCreateInfo, allocationCreateInfo);
 
 		copy_CommandBuffer->begin({});
-		copy_CommandBuffer->copyBuffer(stageBuffer, vertexBuffer,vk::BufferCopy(0,0, sizeof(Vertex) * verticies.size() ));
-		copy_CommandBuffer->end(); 
-
-		vk::CommandBuffer cpyCmdBuff = (vk::CommandBuffer)*copy_CommandBuffer;
+		copy_CommandBuffer->copyBuffer(stageBuffer, vertexBuffer,vk::BufferCopy(0,0, sizeof(Vertex) * vertices.size() ));
+		copy_CommandBuffer->end();
 
 		vk::SubmitInfo submitInfo; 
 		submitInfo.commandBufferCount = 1; 
-		submitInfo.pCommandBuffers = &cpyCmdBuff;
+		submitInfo.pCommandBuffers = (&(**copy_CommandBuffer));
 		renderDevice->getGraphicsQueue().submit(submitInfo); 
 		renderDevice->getLogicalDevice().waitIdle();
 
 		return vertexBufferPool.add_resource(VertexBuffer(std::move(vertexBuffer),verticies.size()));
 	}
 
-	bool Renderer::vertexBufferExists(ResourceID id) const
+	bool Renderer::vertexBufferExists(const ResourceID id) const
 	{
 		return vertexBufferPool.resource_vaild(id);
 	}
 
-	void Renderer::destroyVertexBuffer(ResourceID id)
+	void Renderer::destroyVertexBuffer(const ResourceID id)
 	{
 		return vertexBufferPool.destroy_resource(id);
 	}
@@ -356,50 +354,44 @@ namespace pyra
 
 	}
 
-	
-	void transition_image_layout(
-		const vk::raii::CommandBuffer& commandBuffer,
-		VkPipelineStageFlags2 srcStageMask,
-		VkPipelineStageFlags2 dstStageMask,
-		VkAccessFlags2	srcAccessMask,
-		VkAccessFlags2	dstAccessMask,
-		VkImageLayout	oldImageLayout,
-		VkImageLayout	newImageLayout,
-		uint32_t		srcQueueFamilyIndex,
-		uint32_t		dstQueueFamilyIndex,
-		VkImage			image
+	static void transition_image_layout(
+		const vk::raii::CommandBuffer&	commandBuffer,
+		const vk::PipelineStageFlags2 	srcStageMask,
+		const vk::PipelineStageFlags2 	dstStageMask,
+		const vk::AccessFlags2			srcAccessMask,
+		const vk::AccessFlags2			dstAccessMask,
+		const vk::ImageLayout			oldImageLayout,
+		const vk::ImageLayout			newImageLayout,
+		const uint32_t					srcQueueFamilyIndex,
+		const uint32_t					dstQueueFamilyIndex,
+		const vk::Image					image
 	)
 	{
-		VkImageMemoryBarrier2 barrier{
-			.sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER_2,
-			.pNext = NULL,
-			.srcStageMask = srcStageMask,
-			.srcAccessMask = srcAccessMask,
-			.dstStageMask = dstStageMask,
-			.dstAccessMask = dstAccessMask,
-			.oldLayout = oldImageLayout,
-			.newLayout = newImageLayout,
-			.srcQueueFamilyIndex = srcQueueFamilyIndex,
-			.dstQueueFamilyIndex = dstQueueFamilyIndex,
-			.image = image,
-			.subresourceRange = {.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT, .baseMipLevel = 0, .levelCount = 1, .baseArrayLayer = 0, .layerCount = 1}
-		}; 		
-		VkDependencyInfo dependencyInfo{
-			.sType = VK_STRUCTURE_TYPE_DEPENDENCY_INFO,
-			.pNext = NULL,
-			.dependencyFlags = NULL,
-			.memoryBarrierCount = 0,
-			.pMemoryBarriers = NULL,
-			.bufferMemoryBarrierCount = 0,
-			.pBufferMemoryBarriers = NULL,
-			.imageMemoryBarrierCount = 1,
-			.pImageMemoryBarriers = &barrier
-		}; 
+		vk::ImageMemoryBarrier2 barrier;
+		barrier.srcStageMask = srcStageMask;
+		barrier.srcAccessMask = srcAccessMask;
+		barrier.dstStageMask = dstStageMask;
+		barrier.dstAccessMask = dstAccessMask;
+		barrier.oldLayout = oldImageLayout;
+		barrier.newLayout = newImageLayout;
+		barrier.srcQueueFamilyIndex = srcQueueFamilyIndex;
+		barrier.dstQueueFamilyIndex = dstQueueFamilyIndex;
+		barrier.image = image;
+		barrier.subresourceRange = {vk::ImageAspectFlagBits::eColor, 0, 1, 0, 1};
+
+		vk::DependencyInfo dependencyInfo;
+		dependencyInfo.pNext = nullptr;
+		dependencyInfo.dependencyFlags = {};
+		dependencyInfo.memoryBarrierCount = 0;
+		dependencyInfo.pMemoryBarriers = nullptr;
+		dependencyInfo.bufferMemoryBarrierCount = 0;
+		dependencyInfo.pBufferMemoryBarriers = nullptr;
+		dependencyInfo.imageMemoryBarrierCount = 1;
+		dependencyInfo.pImageMemoryBarriers = &barrier;
+
 		commandBuffer.pipelineBarrier2(dependencyInfo);
 	}
-	
 
-	
 	void Renderer::Draw(RenderTarget target, glm::vec4 clearColor)
 	{
 		pyra_assert(vulkanInstanceExists()); 
@@ -419,59 +411,54 @@ namespace pyra
 		currentFrameIdx %= concurrentFrames.size();
 		const auto& logicalDevice = renderDevice->getLogicalDevice();
 		const auto& graphicsQueue = renderDevice->getGraphicsQueue();
-		const auto& currentFrame = concurrentFrames[currentFrameIdx];
+		const auto& [commandBuffer, commandBufferReadyFence, commandBufferImagePaintableSemaphore] = concurrentFrames[currentFrameIdx];
 		const auto& swapchain_ = swapchain->getSwapchain();
-		const auto& commandBuffer = currentFrame.commandBuffer;
 
 		const auto& graphicsPipeline = graphicsPipelinePool.get_resource(target.graphics_pipeline);
 		const auto& vertexBuffer = vertexBufferPool.get_resource(target.vertex_buffer);
 
-		logicalDevice.waitForFences(*currentFrame.commandBufferReadyFence, VK_TRUE, UINT64_MAX);
-		logicalDevice.resetFences(*currentFrame.commandBufferReadyFence);
+		vk::Result result = logicalDevice.waitForFences(*commandBufferReadyFence, vk::True, std::numeric_limits<uint64_t>::max());
+		logicalDevice.resetFences(*commandBufferReadyFence);
 
-		auto [result, imageIdx] = swapchain_.acquireNextImage(UINT64_MAX, *currentFrame.commandBufferImagePaintableSemaphore);
+		auto [res, imageIdx] = swapchain_.acquireNextImage(UINT64_MAX, *commandBufferImagePaintableSemaphore);
 		
 		commandBuffer.begin({});
 
 		transition_image_layout(
 			commandBuffer,
-			VK_PIPELINE_STAGE_2_COLOR_ATTACHMENT_OUTPUT_BIT,
-			VK_PIPELINE_STAGE_2_COLOR_ATTACHMENT_OUTPUT_BIT,
+			vk::PipelineStageFlagBits2::eColorAttachmentOutput,
+			vk::PipelineStageFlagBits2::eColorAttachmentOutput,
 			{},
-			VK_ACCESS_2_COLOR_ATTACHMENT_WRITE_BIT,
-			VK_IMAGE_LAYOUT_UNDEFINED,
-			VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL,
-			VK_QUEUE_FAMILY_IGNORED,
-			VK_QUEUE_FAMILY_IGNORED,
-			(VkImage)swapchain->getImages()[imageIdx]
+			vk::AccessFlagBits2::eColorAttachmentWrite,
+			vk::ImageLayout::eUndefined,
+			vk::ImageLayout::eColorAttachmentOptimal,
+			vk::QueueFamilyIgnored,
+			vk::QueueFamilyIgnored,
+			swapchain->getImages()[imageIdx]
 			);
 
-		VkClearColorValue clearColorValue; 
+		vk::ClearColorValue clearColorValue;
 		clearColorValue.float32[0] = clearColor.r;
 		clearColorValue.float32[1] = clearColor.g;
 		clearColorValue.float32[2] = clearColor.b;
 		clearColorValue.float32[3] = clearColor.a;
 
-		VkRenderingAttachmentInfo colorAttachmentInfo{
-			.sType = VK_STRUCTURE_TYPE_RENDERING_ATTACHMENT_INFO,
-			.pNext = NULL,
-			.imageView = (VkImageView)*swapchain->getImageViews()[imageIdx],
-			.imageLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL,
-			.loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR,
-			.storeOp = VK_ATTACHMENT_STORE_OP_STORE,
-			.clearValue = clearColorValue,
-		};
+		vk::RenderingAttachmentInfo colorAttachmentInfo;
+		colorAttachmentInfo.pNext = nullptr;
+		colorAttachmentInfo.imageView = *swapchain->getImageViews()[imageIdx];
+		colorAttachmentInfo.imageLayout = vk::ImageLayout::eColorAttachmentOptimal;
+		colorAttachmentInfo.loadOp = vk::AttachmentLoadOp::eClear;
+		colorAttachmentInfo.storeOp = vk::AttachmentStoreOp::eStore;
+		colorAttachmentInfo.clearValue = clearColorValue;
 
-		VkRenderingInfo renderingInfo{
-			.sType = VK_STRUCTURE_TYPE_RENDERING_INFO,
-			.pNext = NULL,
-			.flags = {},
-			.renderArea = {.offset = {0,0},.extent = swapchain->getConfig().imageExtent},
-			.layerCount = 1,
-			.viewMask = 0,
-			.colorAttachmentCount = 1,
-			.pColorAttachments = &colorAttachmentInfo
-		};
+		vk::RenderingInfo renderingInfo;
+		renderingInfo.pNext = nullptr;
+		renderingInfo.flags = {};
+		renderingInfo.renderArea = vk::Rect2D(vk::Offset2D(0,0), swapchain->getConfig().imageExtent);
+		renderingInfo.layerCount = 1;
+		renderingInfo.viewMask = 0;
+		renderingInfo.colorAttachmentCount = 1;
+		renderingInfo.pColorAttachments = &colorAttachmentInfo;
 
 		commandBuffer.beginRendering(renderingInfo); 
 		commandBuffer.bindPipeline(vk::PipelineBindPoint::eGraphics, graphicsPipeline.getGraphicsPipeline());
@@ -483,52 +470,42 @@ namespace pyra
 
 		transition_image_layout(
 			commandBuffer,
-			VK_PIPELINE_STAGE_2_COLOR_ATTACHMENT_OUTPUT_BIT,
-			VK_PIPELINE_STAGE_2_BOTTOM_OF_PIPE_BIT,
-			VK_ACCESS_2_COLOR_ATTACHMENT_WRITE_BIT,
+			vk::PipelineStageFlagBits2::eColorAttachmentOutput,
+			vk::PipelineStageFlagBits2::eBottomOfPipe,
+			vk::AccessFlagBits2::eColorAttachmentWrite,
 			{},
-			VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL,
-			VK_IMAGE_LAYOUT_PRESENT_SRC_KHR,
-			VK_QUEUE_FAMILY_IGNORED,
-			VK_QUEUE_FAMILY_IGNORED,
-			(VkImage)swapchain->getImages()[imageIdx]
+			vk::ImageLayout::eColorAttachmentOptimal,
+			vk::ImageLayout::ePresentSrcKHR,
+			vk::QueueFamilyIgnored,
+			vk::QueueFamilyIgnored,
+			swapchain->getImages()[imageIdx]
 		);
 
 		commandBuffer.end();
 
-		VkSemaphore wS = (VkSemaphore)*currentFrame.commandBufferImagePaintableSemaphore;
-		VkPipelineStageFlags waitDestination = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
-		VkCommandBuffer cB = (VkCommandBuffer)*commandBuffer;
-		VkSemaphore sS = (VkSemaphore)*swapchain->getImagePresentableSemaphores()[imageIdx];
+		vk::PipelineStageFlags waitDestination = vk::PipelineStageFlagBits::eColorAttachmentOutput;
+		vk::SubmitInfo submitInfo;
+		submitInfo.pNext = nullptr;
+		submitInfo.waitSemaphoreCount = 1;
+		submitInfo.pWaitSemaphores = &*commandBufferImagePaintableSemaphore;
+		submitInfo.pWaitDstStageMask = &waitDestination;
+		submitInfo.commandBufferCount = 1;
+		submitInfo.pCommandBuffers = &*commandBuffer;
+		submitInfo.signalSemaphoreCount = 1;
+		submitInfo.pSignalSemaphores = &*swapchain->getImagePresentableSemaphores()[imageIdx];
 
-		VkSubmitInfo submitInfo{
-			.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO,
-			.pNext = NULL,
-			.waitSemaphoreCount = 1,
-			.pWaitSemaphores = &wS,
-			.pWaitDstStageMask = &waitDestination,
-			.commandBufferCount = 1,
-			.pCommandBuffers = &cB,
-			.signalSemaphoreCount = 1,
-			.pSignalSemaphores = &sS
-		};
+		graphicsQueue.submit(submitInfo,commandBufferReadyFence);
 
-		graphicsQueue.submit(vk::SubmitInfo(submitInfo),currentFrame.commandBufferReadyFence);
+		vk::PresentInfoKHR presentInfo;
+		presentInfo.pNext = nullptr;
+		presentInfo.waitSemaphoreCount = 1;
+		presentInfo.pWaitSemaphores = &*swapchain->getImagePresentableSemaphores()[imageIdx];
+		presentInfo.swapchainCount = 1;
+		presentInfo.pSwapchains = &*swapchain_;
+		presentInfo.pImageIndices = &imageIdx;
+		presentInfo.pResults = nullptr;
 
-		VkSwapchainKHR sC = (VkSwapchainKHR)*swapchain_;
-
-		VkPresentInfoKHR presentInfo{
-			.sType = VK_STRUCTURE_TYPE_PRESENT_INFO_KHR,
-			.pNext = NULL,
-			.waitSemaphoreCount = 1,
-			.pWaitSemaphores = &sS,
-			.swapchainCount = 1,
-			.pSwapchains = &sC,
-			.pImageIndices = &imageIdx,
-			.pResults = NULL
-		};
-
-		graphicsQueue.presentKHR(vk::PresentInfoKHR(presentInfo));
+		result = graphicsQueue.presentKHR(presentInfo);
 		currentFrameIdx++;
 	} 
 

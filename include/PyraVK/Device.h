@@ -9,24 +9,24 @@ namespace pyra
 	class Device : public Object
 	{
 	public : 
-		struct Config : Object::Config
+		struct Config
 		{
-			vk::raii::PhysicalDevice physicalDevice;
-			uint32_t queueFamilyIndex;
+			vk::raii::PhysicalDevice physicalDevice = nullptr;
+			uint32_t queueFamilyIndex = 0;
 		};
 	private : 
 		vk::raii::PhysicalDevice physicalDevice = nullptr; 
 		vk::raii::Device logicalDevice = nullptr; 
 		vk::raii::Queue graphicsQueue = nullptr;
-		uint32_t queueFamilyIndex;
+		uint32_t queueFamilyIndex = 0;
 	public : 
-		static const std::vector<Device::Config> getSuitableDevices(const class VulkanInstance& instance, const class Surface& surface);
-		Device(const Device::Config config);
+		static std::vector<Device::Config> getSuitableDevices(const class VulkanInstance& instance, const class Surface& surface);
+		explicit Device(const Device::Config& config);
 
-		const vk::raii::PhysicalDevice& getPhysicalDevice() const; 
-		const vk::raii::Device& getLogicalDevice() const;
-		const vk::raii::Queue& getGraphicsQueue() const;
-		const uint32_t& getQueueFamilyIndex() const;
+		[[nodiscard]] const vk::raii::PhysicalDevice& getPhysicalDevice() const;
+		[[nodiscard]] const vk::raii::Device& getLogicalDevice() const;
+		[[nodiscard]] const vk::raii::Queue& getGraphicsQueue() const;
+		[[nodiscard]] const uint32_t& getQueueFamilyIndex() const;
 	};
 
 }
