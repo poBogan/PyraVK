@@ -1,48 +1,33 @@
 #include <PyraVK/Shader.h>
-#include <PyraVK/Device.h>
-#include <fstream>
+#include <PyraVK/EngineContext.h>
+#include <utility>
 
 namespace pyra
 {
-	static std::vector<char> readShader(const std::string& fileName)
+	Shader::Shader(ShaderConfig&& config, const EngineContext& engineContext) : m_config(std::move(config))
 	{
-		std::ifstream file(fileName, std::ios::ate | std::ios::binary);
-		if (!file.is_open())
-		{
-			spdlog::error("Shader file \"{:}\" could not be opened!",fileName.c_str());
-			return {};
-		}
-
-		const int fileSize = file.tellg();
-		file.seekg(std::ios::beg);
-
-		std::vector<char> buffer(fileSize);
-		file.read(buffer.data(), fileSize);
-
-		return buffer;
-	}
-
-	Shader::Shader(const Shader::Config& config, const class Device& device) : Object(), config(config)
-	{
-		std::vector<char> moduleCode = readShader(config.file);
-		pyra_assert(!moduleCode.empty());
-		moduleCode.shrink_to_fit();
+		pyra_assert(m_config.c_shader_code.empty() == false);
 
 		vk::ShaderModuleCreateInfo shaderModuleInfo;
-		shaderModuleInfo.codeSize = static_cast<uint32_t>(moduleCode.size()),
-		shaderModuleInfo.pCode = reinterpret_cast<uint32_t*>(moduleCode.data()),
+		shaderModuleInfo.codeSize = static_cast<uint32_t>(m_config.c_shader_code.size() * sizeof(uint32_t)),
+		shaderModuleInfo.pCode = m_config.c_shader_code.data();
 
-		shaderModule = vk::raii::ShaderModule(device.getLogicalDevice(), shaderModuleInfo);
+		m_shader_module = vk::raii::ShaderModule(engineContext.getDevice().get_logical_device(), shaderModuleInfo);
+		m_config.c_shader_code.clear();
 	}
 
-	const Shader::Config& Shader::getConfig() const
+	const vk::raii::ShaderModule& Shader::get_shader_module() const
 	{
-		return config;
+		return m_shader_module;
 	}
 
-	const vk::raii::ShaderModule& Shader::getShaderModule() const
+	bool Shader::has_vertex_shader_entry(const std::string& vertex_shader_entry) const
 	{
-		return shaderModule;
+		return m_config.c_vertex_shader_entries.contains(vertex_shader_entry);
 	}
 
+	bool Shader::has_fragment_shader_entry(const std::string& fragment_shader_entry) const
+	{
+		return m_config.c_fragment_shader_entries.contains(fragment_shader_entry);
+	}
 }

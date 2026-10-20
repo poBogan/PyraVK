@@ -1,7 +1,6 @@
 #include <PyraVK/GraphicsPipeline.h>
 #include <PyraVK/Shader.h>
 #include <PyraVk/Device.h>
-#include <PyraVK/VertexBuffer.h>
 
 namespace pyra
 {
@@ -9,24 +8,17 @@ namespace pyra
 	{
 		vk::PipelineShaderStageCreateInfo vertexShaderStageInfo{};
 		vertexShaderStageInfo.stage = vk::ShaderStageFlagBits::eVertex;
-		vertexShaderStageInfo.module = vertexShaderModule.getShaderModule();
+		vertexShaderStageInfo.module = vertexShaderModule.get_shader_module();
 		vertexShaderStageInfo.pName = config.vertexShaderEntry.c_str();
 
 		vk::PipelineShaderStageCreateInfo fragmentShaderStageInfo{};
 		fragmentShaderStageInfo.stage = vk::ShaderStageFlagBits::eFragment;
-		fragmentShaderStageInfo.module = fragmentShaderModule.getShaderModule();
+		fragmentShaderStageInfo.module = fragmentShaderModule.get_shader_module();
 		fragmentShaderStageInfo.pName = config.fragmentShaderEntry.c_str();
 
 		std::vector<vk::PipelineShaderStageCreateInfo> shaderStages{vertexShaderStageInfo, fragmentShaderStageInfo};
 
-		auto bindingDescription = Vertex::getVertexBindingDescription();
-		auto attributeDescriptions = Vertex::getVertexAttributeDescriptions();
-
 		vk::PipelineVertexInputStateCreateInfo vertexInputState;
-		vertexInputState.vertexBindingDescriptionCount = 1;
-		vertexInputState.pVertexBindingDescriptions = &bindingDescription;
-		vertexInputState.vertexAttributeDescriptionCount = attributeDescriptions.size();
-		vertexInputState.pVertexAttributeDescriptions = attributeDescriptions.data();
 
 		vk::PipelineInputAssemblyStateCreateInfo assemblyStateInfo;
 		assemblyStateInfo.topology = config.primitiveTopology;
@@ -79,7 +71,7 @@ namespace pyra
 		pipelineLayoutInfo.pushConstantRangeCount = 0;
 		pipelineLayoutInfo.pPushConstantRanges = nullptr;
 
-		pipelineLayout = vk::raii::PipelineLayout(device.getLogicalDevice(), pipelineLayoutInfo);
+		pipelineLayout = vk::raii::PipelineLayout(device.get_logical_device(), pipelineLayoutInfo);
 
 		vk::PipelineRenderingCreateInfo pipelineRenderingInfo;
 		pipelineRenderingInfo.viewMask = 0;
@@ -101,7 +93,7 @@ namespace pyra
 		graphicsPipelineCreateInfo.layout = *pipelineLayout;
 		graphicsPipelineCreateInfo.renderPass = nullptr;
 
-		graphicsPipeline = vk::raii::Pipeline(device.getLogicalDevice(),pipelineCache, vk::GraphicsPipelineCreateInfo(graphicsPipelineCreateInfo));
+		graphicsPipeline = vk::raii::Pipeline(device.get_logical_device(),pipelineCache, vk::GraphicsPipelineCreateInfo(graphicsPipelineCreateInfo));
 	}
 
 	const GraphicsPipeline::Config& GraphicsPipeline::getConfig() const

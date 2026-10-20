@@ -7,7 +7,7 @@ namespace pyra
 
 	class GraphicsPipeline : public Object
 	{
-	public : 	
+	public :
 		struct Config
 		{
 			std::string vertexShaderEntry{};
@@ -17,10 +17,10 @@ namespace pyra
 			vk::CullModeFlagBits faceCullingMode{};
 			vk::FrontFace frontFace{};
 		};
-	private : 
+	private :
 		vk::raii::Pipeline graphicsPipeline = nullptr;
-		vk::raii::PipelineLayout pipelineLayout = nullptr; 
-		const GraphicsPipeline::Config config; 
+		vk::raii::PipelineLayout pipelineLayout = nullptr;
+		const GraphicsPipeline::Config config;
 	public : 
 		GraphicsPipeline(const GraphicsPipeline::Config& config, const class Device& device, const class Shader& vertexShaderModule, const class Shader& fragmentShaderModule,const vk::raii::PipelineCache& pipelineCache = nullptr);
 		[[nodiscard]] const GraphicsPipeline::Config& getConfig() const;

@@ -4,30 +4,28 @@
 namespace pyra
 {
 
+	struct SwapchainConfig
+	{
+		vk::Extent2D c_swapchain_image_extent{};
+		uint32_t c_swapchain_image_count{};
+		vk::Format c_swapchain_image_color_format{};
+		vk::ColorSpaceKHR c_swapchain_image_color_space{};
+		vk::PresentModeKHR c_swapchain_present_mode{};
+	};
+
 	class Swapchain : public Object
 	{
+		SwapchainConfig m_config;
+		vk::raii::SwapchainKHR m_swapchain = nullptr;
+		std::vector<vk::Image> m_swapchain_images;
+		std::vector<vk::raii::ImageView> m_swapchain_image_views;
+		std::vector<vk::raii::Semaphore> m_swapchain_image_presentable_semaphores;
 	public : 
-		struct Config
-		{
-			vk::Extent2D imageExtent{};
-			uint32_t imageCount = 0;
-			vk::Format imageFormat{};
-			vk::ColorSpaceKHR colorSpace{};
-			vk::PresentModeKHR presentMode{};
-		};
-	private:
-		Swapchain::Config config;
-		vk::raii::SwapchainKHR swapchain = nullptr;
-		std::vector<vk::Image> images;
-		std::vector<vk::raii::ImageView> imageViews;
-		std::vector<vk::raii::Semaphore> imagePresentableSemaphores;
-	public : 
-		explicit  Swapchain(const Swapchain::Config& config, const class Device& device,const class Surface& surface);
-
-		[[nodiscard]] const vk::raii::SwapchainKHR& getSwapchain() const;
-		[[nodiscard]] const std::vector<vk::Image>& getImages() const;
-		[[nodiscard]] const std::vector<vk::raii::ImageView>& getImageViews() const;
-		[[nodiscard]] const std::vector<vk::raii::Semaphore>& getImagePresentableSemaphores() const;
-		[[nodiscard]] const Swapchain::Config& getConfig() const;
+		explicit Swapchain(const SwapchainConfig& config,const class EngineContext& engineContext);
+		[[nodiscard]] const vk::raii::SwapchainKHR& get_swapchain() const;
+		[[nodiscard]] const std::vector<vk::Image>& get_swapchain_images() const;
+		[[nodiscard]] const std::vector<vk::raii::ImageView>& get_swapchain_image_views() const;
+		[[nodiscard]] const std::vector<vk::raii::Semaphore>& get_swapchain_image_presentable_semaphores() const;
+		[[nodiscard]] const SwapchainConfig& get_config() const;
 	};
 }

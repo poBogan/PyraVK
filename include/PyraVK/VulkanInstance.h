@@ -4,24 +4,30 @@
 
 namespace pyra
 {
+    class VulkanContext : public Object
+    {
+        vk::raii::Context m_context;
+        uint32_t m_max_supported_api_version;
+        std::unordered_set<std::string> m_instance_extensions;
+        std::unordered_set<std::string> m_instance_layers;
+    public :
+        VulkanContext();
+        bool api_version_supported(uint32_t api_version) const;
+        bool instance_extension_supported(const char* extension_name) const;
+        bool instance_layer_supported(const char* layer_name) const;
+        const vk::raii::Context& get_context() const;
+    };
 
-	class VulkanInstance : public Object
-	{
-	public : 
-		struct Config
-		{
-			uint32_t vulkan_api_version = vk::ApiVersion13;
-			std::vector<const char*> extensions{};
-			std::vector<const char*> layers{};
-		};
-	private : 
-		vk::raii::Context context;
-		vk::raii::Instance instance = nullptr;
-		const VulkanInstance::Config config;
-	public:
-		explicit VulkanInstance(const VulkanInstance::Config& config);
-		[[nodiscard]] const vk::raii::Instance& getInstance() const;
-		[[nodiscard]] const VulkanInstance::Config& getConfig() const;
-	};
+    class VulkanInstance : public Object
+    {
+        VulkanContext m_context;
+        vk::raii::Instance m_instance = nullptr;
+    public:
+        static constexpr uint32_t vulkan_api_version = vk::ApiVersion14;
 
+        VulkanInstance(const std::vector<const char*>& extensions,const std::vector<const char*>& layers);
+        const VulkanContext& getVulkanContext() const;
+        [[nodiscard]] const vk::raii::Instance& get_instance() const;
+        std::vector<struct DeviceConfig> get_suitable_devices(const class VulkanSurface& surface) const;
+    };
 }

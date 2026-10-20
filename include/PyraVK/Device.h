@@ -4,29 +4,27 @@
 namespace pyra
 {
 
-	inline const std::vector<const char*> requiredDeviceExtensions{ vk::KHRSwapchainExtensionName, vk::EXTMemoryBudgetExtensionName };
+	struct DeviceConfig
+	{
+		vk::raii::PhysicalDevice c_physical_device = nullptr;
+		uint32_t c_queue_family_index = 0;
+	};
 
 	class Device : public Object
 	{
-	public : 
-		struct Config
-		{
-			vk::raii::PhysicalDevice physicalDevice = nullptr;
-			uint32_t queueFamilyIndex = 0;
-		};
-	private : 
-		vk::raii::PhysicalDevice physicalDevice = nullptr; 
-		vk::raii::Device logicalDevice = nullptr; 
-		vk::raii::Queue graphicsQueue = nullptr;
-		uint32_t queueFamilyIndex = 0;
-	public : 
-		static std::vector<Device::Config> getSuitableDevices(const class VulkanInstance& instance, const class Surface& surface);
-		explicit Device(const Device::Config& config);
+		vk::raii::PhysicalDevice m_physical_device = nullptr;
+		vk::raii::Device m_logical_device = nullptr;
+		vk::raii::Queue m_graphics_queue = nullptr;
+		uint32_t m_queue_family_index = 0;
+	public :
+		static inline const std::vector<const char*> required_device_extensions{ vk::KHRSwapchainExtensionName, vk::EXTMemoryBudgetExtensionName };
 
-		[[nodiscard]] const vk::raii::PhysicalDevice& getPhysicalDevice() const;
-		[[nodiscard]] const vk::raii::Device& getLogicalDevice() const;
-		[[nodiscard]] const vk::raii::Queue& getGraphicsQueue() const;
-		[[nodiscard]] const uint32_t& getQueueFamilyIndex() const;
+		explicit Device(const DeviceConfig& config);
+		[[nodiscard]] const vk::raii::PhysicalDevice& get_physical_device() const;
+		[[nodiscard]] const vk::raii::Device& get_logical_device() const;
+		[[nodiscard]] const vk::raii::Queue& get_graphics_queue() const;
+		[[nodiscard]] const uint32_t& get_queue_family_index() const;
+		[[nodiscard]] bool surface_is_compatible(const class VulkanSurface& surface) const;
 	};
 
 }

@@ -1,104 +1,99 @@
 #include <PyraVK/Swapchain.h>
-#include <PyraVK/Device.h>
-#include <PyraVK/Surface.h>
+#include <PyraVk/EngineContext.h>
 
 namespace pyra
 {
-
-	Swapchain::Swapchain(const Swapchain::Config& config, const Device& device, const Surface& surface) : Object(), config(config)
-	{
-		auto surface_capabilities = device.getPhysicalDevice().getSurfaceCapabilitiesKHR(surface.getSurface());
+    Swapchain::Swapchain(const SwapchainConfig& config,const EngineContext& engineContext) : m_config(config)
+    {
+        auto surface_capabilities = engineContext.getDevice().get_physical_device().getSurfaceCapabilitiesKHR(engineContext.getVulkanSurface().get_surface());
 
 		if (surface_capabilities.currentExtent.width != std::numeric_limits<uint32_t>::max())
 		{
-			this->config.imageExtent = surface_capabilities.currentExtent;
+			m_config.c_swapchain_image_extent = surface_capabilities.currentExtent;
 		}
 
 		else
 		{
-			this->config.imageExtent.width = std::clamp<uint32_t>(this->config.imageExtent.width, surface_capabilities.minImageExtent.width, surface_capabilities.maxImageExtent.width);
-			this->config.imageExtent.height = std::clamp<uint32_t>(this->config.imageExtent.height, surface_capabilities.minImageExtent.height, surface_capabilities.maxImageExtent.height);
+			m_config.c_swapchain_image_extent.width = std::clamp<uint32_t>(m_config.c_swapchain_image_extent.width, surface_capabilities.minImageExtent.width, surface_capabilities.maxImageExtent.width);
+			m_config.c_swapchain_image_extent.height = std::clamp<uint32_t>(m_config.c_swapchain_image_extent.height, surface_capabilities.minImageExtent.height, surface_capabilities.maxImageExtent.height);
 		}
 
 		auto maxImageCount = surface_capabilities.maxImageCount != 0 ? surface_capabilities.maxImageCount : std::numeric_limits<uint32_t>::max();
-		this->config.imageCount = std::clamp<uint32_t>(this->config.imageCount, surface_capabilities.minImageCount + 1, maxImageCount);
+		m_config.c_swapchain_image_count = std::clamp<uint32_t>(m_config.c_swapchain_image_count, surface_capabilities.minImageCount + 1, maxImageCount);
 
-		std::vector<vk::SurfaceFormatKHR> supported_formats = device.getPhysicalDevice().getSurfaceFormatsKHR(surface.getSurface());
-		pyra_assert(!supported_formats.empty());
-		if (std::ranges::find(supported_formats, vk::SurfaceFormatKHR(config.imageFormat, config.colorSpace)) == supported_formats.end())
+		std::vector<vk::SurfaceFormatKHR> supported_formats = engineContext.getDevice().get_physical_device().getSurfaceFormatsKHR(engineContext.getVulkanSurface().get_surface());
+		if (std::ranges::find(supported_formats, vk::SurfaceFormatKHR(m_config.c_swapchain_image_color_format, m_config.c_swapchain_image_color_space)) == supported_formats.end())
 		{
-			this->config.imageFormat = supported_formats.front().format; 
-			this->config.colorSpace = supported_formats.front().colorSpace; 
+			m_config.c_swapchain_image_color_format = supported_formats.front().format;
+			m_config.c_swapchain_image_color_space = supported_formats.front().colorSpace;
 		}
 
-		std::vector<vk::PresentModeKHR> supported_present_modes = device.getPhysicalDevice().getSurfacePresentModesKHR(surface.getSurface());
-		pyra_assert(!supported_present_modes.empty());
-		if (std::ranges::find(supported_present_modes, config.presentMode) == supported_present_modes.end())
+		std::vector<vk::PresentModeKHR> supported_present_modes = engineContext.getDevice().get_physical_device().getSurfacePresentModesKHR(engineContext.getVulkanSurface().get_surface());
+		if (std::ranges::find(supported_present_modes, m_config.c_swapchain_present_mode) == supported_present_modes.end())
 		{
-			this->config.presentMode = vk::PresentModeKHR::eFifo;
-		}		
+			m_config.c_swapchain_present_mode = vk::PresentModeKHR::eFifo;
+		}
 
 		vk::SwapchainCreateInfoKHR swapchainInfo;
-		swapchainInfo.surface = *surface.getSurface();
-		swapchainInfo.minImageCount = this->config.imageCount;
-		swapchainInfo.imageFormat = this->config.imageFormat;
-		swapchainInfo.imageColorSpace = this->config.colorSpace;
-		swapchainInfo.imageExtent = this->config.imageExtent;
+		swapchainInfo.surface = *engineContext.getVulkanSurface().get_surface();
+		swapchainInfo.minImageCount = m_config.c_swapchain_image_count;
+		swapchainInfo.imageFormat = m_config.c_swapchain_image_color_format;
+		swapchainInfo.imageColorSpace = m_config.c_swapchain_image_color_space;
+		swapchainInfo.imageExtent = m_config.c_swapchain_image_extent;
 		swapchainInfo.imageArrayLayers = 1;
 		swapchainInfo.imageUsage = vk::ImageUsageFlagBits::eColorAttachment;
 		swapchainInfo.imageSharingMode = vk::SharingMode::eExclusive;
 		swapchainInfo.queueFamilyIndexCount = 1;
-		swapchainInfo.pQueueFamilyIndices = &device.getQueueFamilyIndex();
+		swapchainInfo.pQueueFamilyIndices = &engineContext.getDevice().get_queue_family_index();
 		swapchainInfo.preTransform = surface_capabilities.currentTransform;
 		swapchainInfo.compositeAlpha = vk::CompositeAlphaFlagBitsKHR::eOpaque;
-		swapchainInfo.presentMode = this->config.presentMode;
+		swapchainInfo.presentMode = m_config.c_swapchain_present_mode;
 		swapchainInfo.clipped = vk::True;
 		swapchainInfo.oldSwapchain = nullptr;
 
-		swapchain = vk::raii::SwapchainKHR(device.getLogicalDevice(), swapchainInfo);
+		m_swapchain = vk::raii::SwapchainKHR(engineContext.getDevice().get_logical_device(), swapchainInfo);
 
-		images = swapchain.getImages();
-		this->config.imageCount = images.size();
+		m_swapchain_images = m_swapchain.getImages();
+		m_config.c_swapchain_image_count = m_swapchain_images.size();
 
-		for (auto& image : images)
+		for (auto& image : m_swapchain_images)
 		{
 			vk::ImageViewCreateInfo imageViewInfo;
 			imageViewInfo.image = image;
 			imageViewInfo.viewType = vk::ImageViewType::e2D;
-			imageViewInfo.format = this->config.imageFormat;
+			imageViewInfo.format = m_config.c_swapchain_image_color_format;
 			imageViewInfo.components = { vk::ComponentSwizzle::eIdentity,vk::ComponentSwizzle::eIdentity,vk::ComponentSwizzle::eIdentity,vk::ComponentSwizzle::eIdentity };
 			imageViewInfo.subresourceRange = {vk::ImageAspectFlagBits::eColor, 0, 1, 0, 1};
-			imageViews.emplace_back(device.getLogicalDevice(), imageViewInfo);
+			m_swapchain_image_views.emplace_back(engineContext.getDevice().get_logical_device(), imageViewInfo);
 
 			vk::SemaphoreCreateInfo semaphoreInfo;
-			imagePresentableSemaphores.emplace_back(device.getLogicalDevice(), semaphoreInfo);
+			m_swapchain_image_presentable_semaphores.emplace_back(engineContext.getDevice().get_logical_device(), semaphoreInfo);
 		}
+    }
 
-	}
+    const vk::raii::SwapchainKHR& Swapchain::get_swapchain() const
+    {
+    	return m_swapchain;
+    }
 
-	const Swapchain::Config& Swapchain::getConfig() const
-	{
-		return config;
-	}
+    const std::vector<vk::Image>& Swapchain::get_swapchain_images() const
+    {
+    	return m_swapchain_images;
+    }
 
-	const vk::raii::SwapchainKHR& Swapchain::getSwapchain() const
-	{
-		return swapchain;
-	}
+    const std::vector<vk::raii::ImageView>& Swapchain::get_swapchain_image_views() const
+    {
+    	return m_swapchain_image_views;
+    }
 
-	const std::vector<vk::Image>& Swapchain::getImages() const
-	{
-		return images;
-	}
+    const std::vector<vk::raii::Semaphore>& Swapchain::get_swapchain_image_presentable_semaphores() const
+    {
+    	return m_swapchain_image_presentable_semaphores;
+    }
 
-	const std::vector<vk::raii::ImageView>& Swapchain::getImageViews() const
-	{
-		return imageViews;
-	}
-
-	const std::vector<vk::raii::Semaphore>& Swapchain::getImagePresentableSemaphores() const
-	{
-		return imagePresentableSemaphores;
-	}
+    const SwapchainConfig& Swapchain::get_config() const
+    {
+    	return m_config;
+    }
 
 }
