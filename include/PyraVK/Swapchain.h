@@ -1,5 +1,5 @@
 #pragma once
-#include <PyraVK/Object.h>
+#include <PyraVK/PyraBase.h>
 
 namespace pyra
 {
@@ -13,7 +13,7 @@ namespace pyra
 		vk::PresentModeKHR c_swapchain_present_mode{};
 	};
 
-	class Swapchain : public Object
+	class Swapchain : public PyraBase
 	{
 		SwapchainConfig m_config;
 		vk::raii::SwapchainKHR m_swapchain = nullptr;
@@ -21,7 +21,7 @@ namespace pyra
 		std::vector<vk::raii::ImageView> m_swapchain_image_views;
 		std::vector<vk::raii::Semaphore> m_swapchain_image_presentable_semaphores;
 	public : 
-		explicit Swapchain(const SwapchainConfig& config,const class EngineContext& engineContext);
+		explicit Swapchain(const SwapchainConfig& config,const class Device& device, const class VulkanSurface& surface);
 		[[nodiscard]] const vk::raii::SwapchainKHR& get_swapchain() const;
 		[[nodiscard]] const std::vector<vk::Image>& get_swapchain_images() const;
 		[[nodiscard]] const std::vector<vk::raii::ImageView>& get_swapchain_image_views() const;

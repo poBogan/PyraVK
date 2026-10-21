@@ -6,7 +6,7 @@
 namespace pyra
 {
 
-	Device::Device(const DeviceConfig& config) : Object()
+	Device::Device(const DeviceConfig& config) : PyraBase()
 	{
 		m_physical_device = config.c_physical_device;
 		m_queue_family_index = config.c_queue_family_index;

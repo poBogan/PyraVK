@@ -38,9 +38,8 @@ target_compile_features(pyra_static PUBLIC cxx_std_20)
 
 target_include_directories(pyra_static PUBLIC ${PYRA_INCLUDE_PATH})
 
-
 target_link_libraries(pyra_static 
-PUBLIC Vulkan::Vulkan 
+PUBLIC Vulkan::Vulkan
 PUBLIC spdlog::spdlog
 PUBLIC glm::glm
 PUBLIC VulkanMemoryAllocator-Hpp::VulkanMemoryAllocator-Hpp

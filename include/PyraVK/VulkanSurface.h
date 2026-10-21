@@ -1,10 +1,10 @@
 #pragma once
-#include <PyraVK/Object.h>
+#include <PyraVK/PyraBase.h>
 
 namespace pyra
 {
 
-	class VulkanSurface : public Object
+	class VulkanSurface : public PyraBase
 	{
 		vk::raii::SurfaceKHR m_surface = nullptr;
 	public : 

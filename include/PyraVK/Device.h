@@ -1,5 +1,5 @@
 #pragma once
-#include <PyraVK/Object.h>
+#include <PyraVK/PyraBase.h>
 
 namespace pyra
 {
@@ -10,7 +10,7 @@ namespace pyra
 		uint32_t c_queue_family_index = 0;
 	};
 
-	class Device : public Object
+	class Device : public PyraBase
 	{
 		vk::raii::PhysicalDevice m_physical_device = nullptr;
 		vk::raii::Device m_logical_device = nullptr;

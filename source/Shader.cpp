@@ -1,19 +1,27 @@
 #include <PyraVK/Shader.h>
-#include <PyraVK/EngineContext.h>
-#include <utility>
+#include "PyraVK/Device.h"
 
 namespace pyra
 {
-	Shader::Shader(ShaderConfig&& config, const EngineContext& engineContext) : m_config(std::move(config))
+	Shader::Shader(const ShaderConfig& config, const Device& device, const VulkanSurface& surface)
 	{
-		pyra_assert(m_config.c_shader_code.empty() == false);
+		pyra_assert(config.c_shader_code.empty() == false);
 
 		vk::ShaderModuleCreateInfo shaderModuleInfo;
-		shaderModuleInfo.codeSize = static_cast<uint32_t>(m_config.c_shader_code.size() * sizeof(uint32_t)),
-		shaderModuleInfo.pCode = m_config.c_shader_code.data();
+		shaderModuleInfo.codeSize = static_cast<uint32_t>(config.c_shader_code.size() * sizeof(uint32_t)),
+		shaderModuleInfo.pCode = config.c_shader_code.data();
 
-		m_shader_module = vk::raii::ShaderModule(engineContext.getDevice().get_logical_device(), shaderModuleInfo);
-		m_config.c_shader_code.clear();
+		m_shader_module = vk::raii::ShaderModule(device.get_logical_device(), shaderModuleInfo);
+
+		for (const auto& vertex_shader_entry : config.c_vertex_shader_entries)
+		{
+			m_vertex_shader_entries.insert(vertex_shader_entry);
+		}
+
+		for (const auto& fragment_shader_entry : config.c_fragment_shader_entries)
+		{
+			m_fragment_shader_entries.insert(fragment_shader_entry);
+		}
 	}
 
 	const vk::raii::ShaderModule& Shader::get_shader_module() const
@@ -23,11 +31,11 @@ namespace pyra
 
 	bool Shader::has_vertex_shader_entry(const std::string& vertex_shader_entry) const
 	{
-		return m_config.c_vertex_shader_entries.contains(vertex_shader_entry);
+		return m_vertex_shader_entries.contains(vertex_shader_entry);
 	}
 
 	bool Shader::has_fragment_shader_entry(const std::string& fragment_shader_entry) const
 	{
-		return m_config.c_fragment_shader_entries.contains(fragment_shader_entry);
+		return m_fragment_shader_entries.contains(fragment_shader_entry);
 	}
 }

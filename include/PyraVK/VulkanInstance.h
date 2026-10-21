@@ -1,10 +1,10 @@
 #pragma once
-#include <PyraVK/Object.h>
+#include <PyraVK/PyraBase.h>
 
 
 namespace pyra
 {
-    class VulkanContext : public Object
+    class VulkanContext : public PyraBase
     {
         vk::raii::Context m_context;
         uint32_t m_max_supported_api_version;
@@ -18,7 +18,7 @@ namespace pyra
         const vk::raii::Context& get_context() const;
     };
 
-    class VulkanInstance : public Object
+    class VulkanInstance : public PyraBase
     {
         VulkanContext m_context;
         vk::raii::Instance m_instance = nullptr;

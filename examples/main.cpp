@@ -1,8 +1,29 @@
-#include <PyraVK/Renderer.h>
 #define GLFW_INCLUDE_VULKAN
+#include <fstream>
 #include <GLFW/glfw3.h>
 
-#include <PyraVK/EngineContext.h>
+#include <PyraVK/VulkanInstance.h>
+#include <PyraVK/VulkanSurface.h>
+#include <PyraVK/Device.h>
+#include <PyraVK/Swapchain.h>
+#include <PyraVK/Shader.h>
+#include <PyraVK/GraphicsPipeline.h>
+
+static std::vector<uint32_t> read_shader(const std::string& file_name)
+{
+	std::ifstream file(file_name, std::ios::binary | std::ios::ate);
+	if (file.is_open() == false)
+	{
+		return  {};
+	}
+	const auto file_size = file.tellg();
+	const auto vector_size = (file_size / sizeof(uint32_t));
+	file.seekg(0, std::ios::beg);
+	std::vector<uint32_t> shader_buffer(vector_size);
+
+	file.read(reinterpret_cast<char*>(shader_buffer.data()), file_size);
+	return shader_buffer;
+}
 
 int main()
 {
@@ -23,8 +44,6 @@ int main()
 	const pyra::DeviceConfig config = instance.get_suitable_devices(surface).front();
 	pyra::Device device(config);
 
-	pyra::EngineContext engineContext(std::move(instance), std::move(surface), std::move(device));
-
 	int width,height;
 	glfwGetFramebufferSize(window, &width, &height);
 
@@ -35,8 +54,29 @@ int main()
 		.c_swapchain_image_color_space = vk::ColorSpaceKHR::eSrgbNonlinear,
 		.c_swapchain_present_mode = vk::PresentModeKHR::eMailbox
 	};
-	pyra::Swapchain swapchain(swapchainConfig,engineContext);
-	pyra::Renderer renderer(engineContext,std::move(swapchain),3);
+	pyra::Swapchain swapchain(swapchainConfig,device,surface);
+
+	pyra::ShaderConfig shaderConfig {
+		.c_shader_code = read_shader("pyra_shader.spirv"),
+		.c_vertex_shader_entries = {"vsEntry"},
+		.c_fragment_shader_entries = {"fsEntry"}
+	};
+	pyra::Shader shader(shaderConfig,device,surface);
+
+	pyra::GraphicsPipelineConfig graphicsPipelineConfig {
+		.vertexShaderEntry = "vsEntry",
+		.fragmentShaderEntry = "fsEntry",
+		.colorAttachmentFormat = swapchainConfig.c_swapchain_image_color_format,
+		.primitiveTopology = vk::PrimitiveTopology::eTriangleList,
+		.faceCullingMode = vk::CullModeFlagBits::eNone,
+		.frontFace = vk::FrontFace::eClockwise,
+	};
+	pyra::GraphicsPipeline graphics_pipeline(graphicsPipelineConfig,shader,shader,device);
+
+	while (glfwWindowShouldClose(window) == 0)
+	{
+		glfwPollEvents();
+	}
 
 	glfwDestroyWindow(window);
 	glfwTerminate();

@@ -1,27 +1,33 @@
 #include <PyraVK/GraphicsPipeline.h>
-#include <PyraVK/Shader.h>
 #include <PyraVk/Device.h>
+#include <PyraVK/Shader.h>
 
 namespace pyra
 {
-	GraphicsPipeline::GraphicsPipeline(const GraphicsPipeline::Config& config, const class Device& device, const class Shader& vertexShaderModule, const class Shader& fragmentShaderModule, const vk::raii::PipelineCache& pipelineCache) : Object(), config(config)
+	GraphicsPipeline::GraphicsPipeline(
+			const GraphicsPipelineConfig& graphics_pipeline_config,
+			const Shader& vertex_shader,
+			const Shader& fragment_shader,
+			const Device& device,
+			const vk::raii::PipelineCache& pipeline_cache
+			) : m_graphics_pipeline_config(graphics_pipeline_config)
 	{
 		vk::PipelineShaderStageCreateInfo vertexShaderStageInfo{};
 		vertexShaderStageInfo.stage = vk::ShaderStageFlagBits::eVertex;
-		vertexShaderStageInfo.module = vertexShaderModule.get_shader_module();
-		vertexShaderStageInfo.pName = config.vertexShaderEntry.c_str();
+		vertexShaderStageInfo.module = vertex_shader.get_shader_module();
+		vertexShaderStageInfo.pName = graphics_pipeline_config.vertexShaderEntry.c_str();
 
 		vk::PipelineShaderStageCreateInfo fragmentShaderStageInfo{};
 		fragmentShaderStageInfo.stage = vk::ShaderStageFlagBits::eFragment;
-		fragmentShaderStageInfo.module = fragmentShaderModule.get_shader_module();
-		fragmentShaderStageInfo.pName = config.fragmentShaderEntry.c_str();
+		fragmentShaderStageInfo.module = fragment_shader.get_shader_module();
+		fragmentShaderStageInfo.pName = graphics_pipeline_config.fragmentShaderEntry.c_str();
 
 		std::vector<vk::PipelineShaderStageCreateInfo> shaderStages{vertexShaderStageInfo, fragmentShaderStageInfo};
 
 		vk::PipelineVertexInputStateCreateInfo vertexInputState;
 
 		vk::PipelineInputAssemblyStateCreateInfo assemblyStateInfo;
-		assemblyStateInfo.topology = config.primitiveTopology;
+		assemblyStateInfo.topology = graphics_pipeline_config.primitiveTopology;
 		assemblyStateInfo.primitiveRestartEnable = vk::False;
 
 		vk::PipelineViewportStateCreateInfo viewportInfo;
@@ -38,8 +44,8 @@ namespace pyra
 		rasterizationInfo.depthClampEnable = vk::False;
 		rasterizationInfo.rasterizerDiscardEnable = vk::False;
 		rasterizationInfo.polygonMode = vk::PolygonMode::eFill;
-		rasterizationInfo.cullMode = config.faceCullingMode;
-		rasterizationInfo.frontFace = config.frontFace;
+		rasterizationInfo.cullMode = graphics_pipeline_config.faceCullingMode;
+		rasterizationInfo.frontFace = graphics_pipeline_config.frontFace;
 		rasterizationInfo.depthBiasEnable = vk::False;
 		rasterizationInfo.lineWidth = 1;
 
@@ -71,12 +77,12 @@ namespace pyra
 		pipelineLayoutInfo.pushConstantRangeCount = 0;
 		pipelineLayoutInfo.pPushConstantRanges = nullptr;
 
-		pipelineLayout = vk::raii::PipelineLayout(device.get_logical_device(), pipelineLayoutInfo);
+		m_pipeline_layout = vk::raii::PipelineLayout(device.get_logical_device(), pipelineLayoutInfo);
 
 		vk::PipelineRenderingCreateInfo pipelineRenderingInfo;
 		pipelineRenderingInfo.viewMask = 0;
 		pipelineRenderingInfo.colorAttachmentCount = 1;
-		pipelineRenderingInfo.pColorAttachmentFormats = &config.colorAttachmentFormat;
+		pipelineRenderingInfo.pColorAttachmentFormats = &graphics_pipeline_config.colorAttachmentFormat;
 
 		vk::GraphicsPipelineCreateInfo graphicsPipelineCreateInfo;
 		graphicsPipelineCreateInfo.pNext = &pipelineRenderingInfo;
@@ -90,20 +96,24 @@ namespace pyra
 		graphicsPipelineCreateInfo.pMultisampleState = &multisampleStateInfo;
 		graphicsPipelineCreateInfo.pColorBlendState = &colorBlendStateInfo;
 		graphicsPipelineCreateInfo.pDynamicState = &dynamicStateInfo;
-		graphicsPipelineCreateInfo.layout = *pipelineLayout;
+		graphicsPipelineCreateInfo.layout = *m_pipeline_layout;
 		graphicsPipelineCreateInfo.renderPass = nullptr;
 
-		graphicsPipeline = vk::raii::Pipeline(device.get_logical_device(),pipelineCache, vk::GraphicsPipelineCreateInfo(graphicsPipelineCreateInfo));
+		m_graphics_pipeline = vk::raii::Pipeline(device.get_logical_device(),pipeline_cache, vk::GraphicsPipelineCreateInfo(graphicsPipelineCreateInfo));
 	}
 
-	const GraphicsPipeline::Config& GraphicsPipeline::getConfig() const
+	const vk::raii::Pipeline& GraphicsPipeline::get_graphics_pipeline() const
 	{
-		return config;
+		return m_graphics_pipeline;
 	}
 
-	const vk::raii::Pipeline& GraphicsPipeline::getGraphicsPipeline() const
+	const vk::raii::PipelineLayout& GraphicsPipeline::get_pipeline_layout() const
 	{
-		return graphicsPipeline;
+		return m_pipeline_layout;
 	}
 
+	const GraphicsPipelineConfig& GraphicsPipeline::get_config() const
+	{
+		return m_graphics_pipeline_config;
+	}
 }

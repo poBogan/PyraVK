@@ -1,11 +1,10 @@
 #pragma once 
 #include <spdlog/spdlog.h>
 #include <spdlog/sinks/stdout_color_sinks.h>
-#include <glm/glm.hpp>
 #include <vulkan/vulkan_core.h>
-#include <vulkan/vulkan.hpp>
 #include <vulkan/vulkan_raii.hpp>
 #include <vk_mem_alloc_raii.hpp>
+#include <glm/glm.hpp>
 
 #include <vector>
 #include <queue>
@@ -21,7 +20,9 @@
 #include <algorithm>
 
 #define pyra_assert(assertion) \
-if(!(assertion)) {spdlog::critical("Function: {:} => Failed Assertion: {:}",__FUNCTION__,#assertion); \
-throw std::runtime_error(#assertion " failed");}
+if(!(assertion)) {\
+    spdlog::critical("[{:}/{:}() line {:}] -> \"{:}\" failed!",__FILE_NAME__,__FUNCTION__,__LINE__,#assertion); \
+    throw std::runtime_error(#assertion " failed");\
+}
 
 #define pyra_error(message,...) spdlog::error("Function: {:} => " message,__func__)

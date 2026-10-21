@@ -3,7 +3,7 @@
 
 namespace pyra
 {
-	VulkanSurface::VulkanSurface(VkSurfaceKHR surface, const VulkanInstance& instance) : Object()
+	VulkanSurface::VulkanSurface(VkSurfaceKHR surface, const VulkanInstance& instance) : PyraBase()
 	{
 		m_surface = vk::raii::SurfaceKHR(instance.get_instance(), surface);
 	}
