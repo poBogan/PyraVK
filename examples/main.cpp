@@ -8,6 +8,7 @@
 #include <PyraVK/Swapchain.h>
 #include <PyraVK/Shader.h>
 #include <PyraVK/GraphicsPipeline.h>
+#include <PyraVK/Buffer.h>
 
 static std::vector<uint32_t> read_shader(const std::string& file_name)
 {
@@ -41,8 +42,8 @@ int main()
 	glfwCreateWindowSurface(static_cast<vk::Instance>(instance.get_instance()), window, nullptr, &surface_);
 	pyra::VulkanSurface surface(surface_,instance);
 
-	const pyra::DeviceConfig config = instance.get_suitable_devices(surface).front();
-	pyra::Device device(config);
+	const pyra::DeviceConfig config = pyra::Device::GetSuitableDevices(instance,surface).front();
+	pyra::Device device(instance,config);
 
 	int width,height;
 	glfwGetFramebufferSize(window, &width, &height);
@@ -61,7 +62,7 @@ int main()
 		.c_vertex_shader_entries = {"vsEntry"},
 		.c_fragment_shader_entries = {"fsEntry"}
 	};
-	pyra::Shader shader(shaderConfig,device,surface);
+	pyra::Shader shader(shaderConfig,device);
 
 	pyra::GraphicsPipelineConfig graphicsPipelineConfig {
 		.vertexShaderEntry = "vsEntry",
@@ -72,6 +73,13 @@ int main()
 		.frontFace = vk::FrontFace::eClockwise,
 	};
 	pyra::GraphicsPipeline graphics_pipeline(graphicsPipelineConfig,shader,shader,device);
+
+	pyra::BufferConfig bufferConfig {
+		.c_buffer_usage = vk::BufferUsageFlagBits::eVertexBuffer,
+		.c_buffer_size = 100,
+		.c_memory_property_flags = vk::MemoryPropertyFlagBits::eDeviceLocal,
+	};
+	pyra::Buffer buffer(bufferConfig, device);
 
 	while (glfwWindowShouldClose(window) == 0)
 	{

@@ -8,10 +8,10 @@ namespace pyra
 	{
 	public:
 		PyraBase() = default;
-		virtual ~PyraBase() = default;
+		~PyraBase() = default;
 
 		PyraBase(const PyraBase&) = delete;
-		const PyraBase& operator=(const PyraBase&) = delete;
+		void operator=(const PyraBase&) = delete;
 
 		PyraBase(PyraBase&&) = default;
 		PyraBase& operator=(PyraBase&&) = default;

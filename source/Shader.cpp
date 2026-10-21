@@ -3,7 +3,7 @@
 
 namespace pyra
 {
-	Shader::Shader(const ShaderConfig& config, const Device& device, const VulkanSurface& surface)
+	Shader::Shader(const ShaderConfig& config, const Device& device)
 	{
 		pyra_assert(config.c_shader_code.empty() == false);
 

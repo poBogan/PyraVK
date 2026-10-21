@@ -12,7 +12,7 @@ namespace pyra
         std::unordered_set<std::string> m_instance_layers;
     public :
         VulkanContext();
-        bool api_version_supported(uint32_t api_version) const;
+        bool api_version_supported() const;
         bool instance_extension_supported(const char* extension_name) const;
         bool instance_layer_supported(const char* layer_name) const;
         const vk::raii::Context& get_context() const;
@@ -28,6 +28,5 @@ namespace pyra
         VulkanInstance(const std::vector<const char*>& extensions,const std::vector<const char*>& layers);
         const VulkanContext& getVulkanContext() const;
         [[nodiscard]] const vk::raii::Instance& get_instance() const;
-        std::vector<struct DeviceConfig> get_suitable_devices(const class VulkanSurface& surface) const;
     };
 }

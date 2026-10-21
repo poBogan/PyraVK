@@ -6,8 +6,6 @@ namespace pyra
 {
     Swapchain::Swapchain(const SwapchainConfig& config,const Device& device, const VulkanSurface& surface) : m_config(config)
     {
-    	pyra_assert(device.surface_is_compatible(surface));
-
         auto surface_capabilities = device.get_physical_device().getSurfaceCapabilitiesKHR(surface.get_surface());
 
 		if (surface_capabilities.currentExtent.width != std::numeric_limits<uint32_t>::max())
