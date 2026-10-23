@@ -5,6 +5,8 @@ namespace pyra
 {
     Buffer::Buffer(const BufferConfig& config, const Device& device) : m_config(config)
     {
+        pyra_assert(config.c_buffer_size > 0);
+
         const auto& allocator = device.get_allocator();
 
         vk::BufferCreateInfo bufferCreateInfo;
@@ -19,7 +21,7 @@ namespace pyra
         allocationCreateInfo.usage = vma::MemoryUsage::eAuto;
         allocationCreateInfo.requiredFlags = m_config.c_memory_property_flags;
 
-        m_buffer = allocator.createBuffer(bufferCreateInfo,allocationCreateInfo);
+        m_buffer = allocator.createBuffer(bufferCreateInfo,allocationCreateInfo,m_allocation_info);
     }
 
     vk::Buffer Buffer::get_buffer() const
@@ -30,6 +32,11 @@ namespace pyra
     const vma::raii::Allocation& Buffer::get_allocation() const
     {
         return m_buffer.getAllocation();
+    }
+
+    const vma::AllocationInfo& Buffer::get_allocation_info() const
+    {
+        return m_allocation_info;
     }
 
     const BufferConfig& Buffer::get_config() const

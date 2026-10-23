@@ -14,11 +14,13 @@ namespace pyra
     class Buffer : public PyraBase
     {
         vma::raii::Buffer m_buffer = nullptr;
+        vma::AllocationInfo m_allocation_info;
         const BufferConfig m_config;
     public :
         Buffer(const BufferConfig& config, const class Device& device);
         [[nodiscard]] vk::Buffer get_buffer() const;
         [[nodiscard]] const vma::raii::Allocation& get_allocation() const;
+        [[nodiscard]] const vma::AllocationInfo& get_allocation_info() const;
         [[nodiscard]] const BufferConfig& get_config() const;
     };
 

@@ -1,6 +1,5 @@
 #pragma once
-#include <PyraVK/Essentials.h>
-
+#include <PyraVK/Core.h>
 
 namespace pyra
 {

@@ -29,13 +29,13 @@ namespace pyra
 		return m_shader_module;
 	}
 
-	bool Shader::has_vertex_shader_entry(const std::string& vertex_shader_entry) const
+	const std::unordered_set<std::string>& Shader::get_vertex_shader_entries() const
 	{
-		return m_vertex_shader_entries.contains(vertex_shader_entry);
+		return m_vertex_shader_entries;
 	}
 
-	bool Shader::has_fragment_shader_entry(const std::string& fragment_shader_entry) const
+	const std::unordered_set<std::string>& Shader::get_fragment_shader_entries() const
 	{
-		return m_fragment_shader_entries.contains(fragment_shader_entry);
+		return m_fragment_shader_entries;
 	}
 }
