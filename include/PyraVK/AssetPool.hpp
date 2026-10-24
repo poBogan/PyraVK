@@ -1,9 +1,7 @@
 #pragma once
+#include <PyraVK/PyraBase.h>
 #include <shared_mutex>
 #include <stack>
-#include <PyraVK/PyraBase.h>
-#include <PyraVK/Shader.h>
-#include <PyraVK/Buffer.h>
 
 namespace pyra
 {
@@ -54,15 +52,15 @@ namespace pyra
         std::stack<uint32_t,std::vector<uint32_t>> m_freed_slot_indices;
         std::shared_mutex m_pool_mutex;
     public :
-        AssetID allocate_asset();
-        void store_asset(AssetID id,T&& asset);
+        AssetID reserve_asset_id();
+        void store_asset(AssetID reserved_id,T&& asset);
         bool asset_stored(AssetID id);
         T& get_asset(AssetID id);
         void destroy_asset(AssetID id);
     };
 
     template <class T, uint32_t block_size>
-    AssetID AssetPool<T, block_size>::allocate_asset()
+    AssetID AssetPool<T, block_size>::reserve_asset_id()
     {
         std::unique_lock lock(m_pool_mutex);
         AssetID id;
@@ -91,20 +89,20 @@ namespace pyra
     }
 
     template <class T, uint32_t block_size>
-    void AssetPool<T, block_size>::store_asset(AssetID id, T&& asset)
+    void AssetPool<T, block_size>::store_asset(AssetID reserved_id, T&& asset)
     {
         std::shared_lock lock(m_pool_mutex);
 
-        SlotLocation slot_location(id.m_index);
+        SlotLocation slot_location(reserved_id.m_index);
         if (slot_location.pool_index >= m_pool.size())
         {
-            spdlog::error("Cannot store asset! Invalid allocated asset id");
+            spdlog::error("Cannot store asset! Invalid reserved asset id");
             return;
         }
         Slot<T>& slot = m_pool.at(slot_location.pool_index)->at(slot_location.block_index);
-        if (slot.m_generation != id.m_generation)
+        if (slot.m_generation != reserved_id.m_generation)
         {
-            spdlog::error("Cannot store asset! Invalid allocated asset id");
+            spdlog::error("Cannot store asset! Invalid reserved asset id");
             return;
         }
 
@@ -116,7 +114,7 @@ namespace pyra
         }
         else
         {
-            spdlog::error("Cannot store asset! Invalid allocated asset id");
+            spdlog::error("Cannot store asset! Invalid reserved asset id");
         }
     }
 
@@ -193,17 +191,4 @@ namespace pyra
             spdlog::error("Cannot destroy asset! No such stored asset found");
         }
     }
-
-    class AssetManager : public PyraBase
-    {
-        static constexpr uint32_t s_block_size = 1024;
-
-        const Device& m_device;
-        std::unordered_set<std::string> m_loaded_files;
-        AssetPool<Shader,s_block_size> m_shader_pool;
-        AssetPool<Buffer,s_block_size> m_buffer_pool;
-    public :
-        explicit AssetManager(const Device& device);
-    };
-
 }
