@@ -5,190 +5,153 @@
 
 namespace pyra
 {
-    enum SlotState : uint8_t
-    {
-        empty,
-        allocated,
-        storing,
-        stored
-    };
+
 
     template<class T>
     struct Slot
     {
         std::optional<T> m_object;
         uint32_t m_generation = 1;
-        std::atomic_uint8_t m_state = empty;
+        std::atomic_bool m_locked = false;
+
+        void lock();
+        void unlock();
+        bool try_lock();
     };
+
+    template <class T>
+    void Slot<T>::lock()
+    {
+        while (m_locked.exchange(true, std::memory_order_acquire))
+        {
+            m_locked.wait(true, std::memory_order_relaxed);
+        }
+    }
+
+    template <class T>
+    void Slot<T>::unlock()
+    {
+        m_locked.store(false, std::memory_order_release);
+        m_locked.notify_one();
+    }
+
+    template <class T>
+    bool Slot<T>::try_lock()
+    {
+        return !m_locked.exchange(true, std::memory_order_acquire);
+    }
 
     struct AssetID
     {
-        uint32_t m_index = 0;
-        uint32_t m_generation = 0;
+        uint32_t m_slot_index = 0;
+        uint32_t m_slot_generation = 0;
+    };
+
+    template <class T>
+    struct LockedAsset
+    {
+        std::unique_lock<Slot<T>> container_slot_lock;
+        T& asset;
     };
 
     template<class T, uint32_t block_size>
     class AssetPool
     {
         static_assert(block_size > 0, "block_size must be greater than 0");
-
-        struct SlotLocation
-        {
-            SlotLocation() = default;
-            explicit SlotLocation(const uint32_t global_slot_idx)
-            {
-                pool_index = global_slot_idx / block_size;
-                block_index = global_slot_idx % block_size;
-            }
-
-            uint32_t pool_index;
-            uint32_t block_index;
-        };
-
-        typedef std::array<Slot<T>,block_size> memory_block;
-
-        std::vector<std::unique_ptr<memory_block>> m_pool;
+        using block = std::array<Slot<T>, block_size>;
+        std::vector<std::unique_ptr<block>> m_block_pointers;
         uint32_t m_next_slot_index = 0;
-        std::stack<uint32_t,std::vector<uint32_t>> m_freed_slot_indices;
+        std::stack<uint32_t> m_cleared_slot_indices;
         std::shared_mutex m_pool_mutex;
     public :
-        AssetID reserve_asset_id();
-        void store_asset(AssetID reserved_id,T&& asset);
-        bool asset_stored(AssetID id);
-        T& get_asset(AssetID id);
+        AssetID store_asset(T&& asset);
+        LockedAsset<T> get_asset(AssetID id);
         void destroy_asset(AssetID id);
     };
 
     template <class T, uint32_t block_size>
-    AssetID AssetPool<T, block_size>::reserve_asset_id()
+    AssetID AssetPool<T, block_size>::store_asset(T&& asset)
     {
-        std::unique_lock lock(m_pool_mutex);
+        std::unique_lock pool_lock(m_pool_mutex);
         AssetID id;
-        if (m_freed_slot_indices.empty())
+        if (m_cleared_slot_indices.empty())
         {
-            id.m_index = m_next_slot_index++;
-            id.m_generation = 1;
-            const SlotLocation slot_location(id.m_index);
-            if (slot_location.pool_index == m_pool.size())
-                m_pool.push_back(std::make_unique<memory_block>());
+            id.m_slot_index = m_next_slot_index++;
+            id.m_slot_generation = 1;
 
-            auto& slot = m_pool.at(slot_location.pool_index)->at(slot_location.block_index);
-            slot.m_generation = 1;
-            slot.m_state.store(allocated,std::memory_order_release);
+            uint32_t pointer_idx = id.m_slot_index / block_size;
+            uint32_t block_idx = id.m_slot_index % block_size;
+
+            if (pointer_idx == m_block_pointers.size())
+            {
+                m_block_pointers.emplace_back(std::make_unique<block>());
+            }
+
+            Slot<T>& container_slot = (*m_block_pointers[pointer_idx])[block_idx];
+            pool_lock.unlock();
+
+            std::unique_lock slot_lock(container_slot);
+            container_slot.m_generation = 1;
+            container_slot.m_object.emplace(std::move(asset));
         }
+
         else
         {
-            id.m_index = m_freed_slot_indices.top();
-            m_freed_slot_indices.pop();
-            const SlotLocation slot_location(id.m_index);
-            auto& slot = m_pool.at(slot_location.pool_index)->at(slot_location.block_index);
-            id.m_generation = slot.m_generation;
-            slot.m_state.store(allocated,std::memory_order_release);
+            id.m_slot_index = m_cleared_slot_indices.top();
+            m_cleared_slot_indices.pop();
+
+            uint32_t pointer_idx = id.m_slot_index / block_size;
+            uint32_t block_idx = id.m_slot_index % block_size;
+
+            Slot<T>& container_slot = (*m_block_pointers[pointer_idx])[block_idx];
+            pool_lock.unlock();
+
+            std::unique_lock slot_lock(container_slot);
+            id.m_slot_generation = container_slot.m_generation;
+            container_slot.m_object.emplace(std::move(asset));
         }
+
         return id;
     }
 
     template <class T, uint32_t block_size>
-    void AssetPool<T, block_size>::store_asset(AssetID reserved_id, T&& asset)
+    LockedAsset<T> AssetPool<T, block_size>::get_asset(AssetID id)
     {
-        std::shared_lock lock(m_pool_mutex);
+        uint32_t pointer_idx = id.m_slot_index / block_size;
+        uint32_t block_idx = id.m_slot_index % block_size;
 
-        SlotLocation slot_location(reserved_id.m_index);
-        if (slot_location.pool_index >= m_pool.size())
-        {
-            spdlog::error("Cannot store asset! Invalid reserved asset id");
-            return;
-        }
-        Slot<T>& slot = m_pool.at(slot_location.pool_index)->at(slot_location.block_index);
-        if (slot.m_generation != reserved_id.m_generation)
-        {
-            spdlog::error("Cannot store asset! Invalid reserved asset id");
-            return;
-        }
+        std::shared_lock pool_lock(m_pool_mutex);
+        pyra_assert(pointer_idx < m_block_pointers.size());
+        Slot<T>& container_slot = (*m_block_pointers[pointer_idx])[block_idx];
+        pool_lock.unlock();
 
-        SlotState expected_state = allocated;
-        if (slot.m_state.compare_exchange_strong(expected_state,storing,std::memory_order_acquire))
-        {
-            slot.m_object.emplace(std::move(asset));
-            slot.m_state.store(stored, std::memory_order_release);
-        }
-        else
-        {
-            spdlog::error("Cannot store asset! Invalid reserved asset id");
-        }
-    }
+        std::unique_lock slot_lock(container_slot);
+        pyra_assert(container_slot.m_object.has_value());
+        pyra_assert(container_slot.m_generation == id.m_slot_generation);
 
-    template <class T, uint32_t block_size>
-    bool AssetPool<T, block_size>::asset_stored(AssetID id)
-    {
-        std::shared_lock lock(m_pool_mutex);
-
-        SlotLocation slot_location(id.m_index);
-        if (slot_location.pool_index < m_pool.size() == false)
-            return false;
-
-        Slot<T>& slot = m_pool.at(slot_location.pool_index)->at(slot_location.block_index);
-
-        bool result = slot.m_generation == id.m_generation;
-        result = result && slot.m_state.load(std::memory_order_acquire) == stored;
-        return result;
-    }
-
-    template <class T, uint32_t block_size>
-    T& AssetPool<T, block_size>::get_asset(const AssetID id)
-    {
-        std::shared_lock lock(m_pool_mutex);
-        SlotLocation slot_location(id.m_index);
-
-        if (slot_location.pool_index >= m_pool.size())
-        {
-            throw std::runtime_error("Cannot get asset! No such asset found");
-        }
-
-        Slot<T>& slot = m_pool.at(slot_location.pool_index)->at(slot_location.block_index);
-
-        if (slot.m_generation != id.m_generation)
-        {
-            throw std::runtime_error("Cannot get asset! No such asset found");
-        }
-
-        if (slot.m_state.load(std::memory_order_acquire) != stored)
-        {
-            throw std::runtime_error("Cannot get asset! No such asset found");
-        }
-
-        return slot.m_object.value();
+        return LockedAsset<T>{.container_slot_lock = std::move(slot_lock), .asset = container_slot.m_object.value()};
     }
 
     template <class T, uint32_t block_size>
     void AssetPool<T, block_size>::destroy_asset(AssetID id)
     {
-        std::unique_lock lock(m_pool_mutex);
-        SlotLocation slot_location(id.m_index);
-        if (slot_location.pool_index >= m_pool.size())
-        {
-            spdlog::error("Cannot destroy asset! No such stored asset found");
-            return;
-        }
+        uint32_t pointer_idx = id.m_slot_index / block_size;
+        uint32_t block_idx = id.m_slot_index % block_size;
 
-        Slot<T>& slot = m_pool.at(slot_location.pool_index)->at(slot_location.block_index);
+        std::shared_lock pool_lock(m_pool_mutex);
+        pyra_assert(pointer_idx < m_block_pointers.size());
+        Slot<T>& container_slot = (*m_block_pointers[pointer_idx])[block_idx];
+        pool_lock.unlock();
 
-        if (slot.m_generation != id.m_generation)
+        std::unique_lock slot_lock(container_slot);
+        if (container_slot.m_generation == id.m_slot_generation && container_slot.m_object.has_value())
         {
-            spdlog::error("Cannot destroy asset! No such stored asset found");
-            return;
-        }
+            container_slot.m_object.reset();
+            ++container_slot.m_generation;
+            slot_lock.unlock();
 
-        SlotState expected_state = stored;
-        if (slot.m_state.compare_exchange_strong(expected_state,empty,std::memory_order_acquire))
-        {
-            slot.m_object.reset();
-            ++slot.m_generation;
-            m_freed_slot_indices.push(id.m_index);
-        }
-        else
-        {
-            spdlog::error("Cannot destroy asset! No such stored asset found");
+            std::unique_lock write_pool_lock(m_pool_mutex);
+            m_cleared_slot_indices.push(id.m_slot_index);
         }
     }
 }
